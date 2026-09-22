@@ -1,0 +1,15 @@
+[package]
+name = "omnistore/omnistore"
+description = "Typed, game-agnostic Roblox persistence with leases, migrations, and safe mutation APIs"
+version = "0.1.0"
+license = "MIT"
+realm = "shared"
+registry = "https://github.com/UpliftGames/wally-index"
+
+[dependencies]
+
+[server-dependencies]
+
+[dev-dependencies]
+TestEZ = "roblox/testez@0.4.1"
+
