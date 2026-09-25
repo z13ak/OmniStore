@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/github-banner.png" alt="OmniStore — Typed Persistence" width="100%">
+  <img src="assets/github-banner.png" alt="OmniStore — Typed Persistence for Roblox" width="100%">
 </p>
 
 <p align="center">
