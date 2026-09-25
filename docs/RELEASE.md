@@ -16,13 +16,14 @@ Releases are deliberate and never performed merely because a development phase c
 ## Automation
 
 Pull requests and main-branch pushes run static checks, all Rojo builds, and Wally package inspection.
-A `v*` tag runs the same toolchain, requires the tag to equal the manifest version and a dated
-changelog heading, then creates a **draft** GitHub release with the Wally and Rojo artifacts. Review
-that draft, its SHA-256 manifest, and the recorded Studio/smoke evidence before publishing it.
+An approved `v*` tag runs the same toolchain, requires the tag to equal the manifest version and a
+dated changelog heading, then publishes a GitHub release with the Wally and Rojo artifacts. Versions
+containing a SemVer prerelease suffix are marked as GitHub prereleases. Review the SHA-256 manifest
+and recorded Studio/smoke evidence before creating the tag.
 
 Wally registry publication remains manual so a GitHub tag cannot publish an unreviewed package.
 Authenticate locally, inspect the exact candidate archive and repository state, then run
-`wally publish` only after the GitHub draft is approved. Registry publication is generally
+`wally publish` only after the GitHub release and its artifacts are approved. Registry publication is generally
 irreversible for a version; never reuse a released version number.
 
 ## Rollback

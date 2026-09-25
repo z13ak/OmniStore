@@ -60,7 +60,7 @@ jobs:
           git diff --check
           sha256sum dist/*.rbxm dist/*.rbxlx dist/*.zip > dist/SHA256SUMS.txt
 
-      - name: Create draft GitHub release
+      - name: Publish GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
@@ -70,7 +70,6 @@ jobs:
             prerelease+=(--prerelease)
           fi
           gh release create "$RELEASE_TAG" \
-            --draft \
             --verify-tag \
             --title "$RELEASE_TAG" \
             --generate-notes \

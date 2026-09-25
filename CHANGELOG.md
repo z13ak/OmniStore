@@ -21,7 +21,7 @@ All notable changes follow Keep a Changelog. This project uses semantic versioni
 - Phase 6 replication hardening: monotonic per-channel sequences, client gap resync, event buffering,
   bounded payload/path/channel/request limits, lifecycle cleanup, and synchronization status signals.
 - Phase 7 release engineering: pinned Rokit toolchain, pull-request CI, validated Wally/Rojo
-  artifacts, draft tag releases, contributor/security policies, and release/upgrade/testing/
+  artifacts, verified tag releases, contributor/security policies, and release/upgrade/testing/
   performance/incident-response documentation.
 
 ### Fixed

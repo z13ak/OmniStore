@@ -17,7 +17,7 @@ conservative: a feature is not called production-ready merely because an impleme
   TestEZ suite passes 59 tests with zero failures. Published-universe smoke checks persist and reload
   normal records; live read-only access and a model/Vector3-codec round trip also pass.
 - Release engineering: pinned Rokit/Aftman manifests, pull-request CI, candidate artifact upload,
-  package-content checks, and draft tag-release automation are defined. The equivalent local gate
+  package-content checks, and verified tag-release automation are defined. The equivalent local gate
   passes. GitHub CI run `36128965187` passed every step on commit `160b942`, including candidate
   artifact upload.
 
@@ -48,7 +48,7 @@ OmniStore/
 | 4. Schema/model system | Complete for the current contract | Path-aware composable schemas, stable model IDs, model definitions, recursive codec registry, Reject/Preserve unknown-codec policy, six Roblox datatype codecs, and per-step migration validation are implemented and tested. |
 | 5. Transactions | Complete for the current contract | Transactions use isolated drafts, reject yielding callbacks and live-record re-entry, validate the complete final state, commit data and metadata together in memory, and buffer observer events until commit. They are explicitly single-record local operations; persistence remains a separate save. |
 | 6. Replication | Complete for the current optional contract | Server-authoritative, non-overlapping allowlists; per-channel sequences; gap/invalidation resync; initialization buffering; synchronization status; request/payload/path/channel bounds; lifecycle cleanup; and adversarial protocol tests are implemented. Replication remains eventually consistent and read-only. |
-| 7. Release engineering | Complete for the release-candidate contract | Pinned current/legacy tool manifests, CI, three Rojo artifacts, bounded Wally package contents, draft tag releases, contribution/security policies, compatibility and upgrade rules, complete error reference, testing/performance/incident/release guides, and release evidence requirements are present. Wally publication intentionally remains manual. |
+| 7. Release engineering | Complete for the release-candidate contract | Pinned current/legacy tool manifests, CI, three Rojo artifacts, bounded Wally package contents, verified tag releases, contribution/security policies, compatibility and upgrade rules, complete error reference, testing/performance/incident/release guides, and release evidence requirements are present. Wally publication intentionally remains manual. |
 
 ## Architectural risks
 
@@ -70,15 +70,15 @@ OmniStore/
 - A live client/server replication test matrix covering latency, disconnects, and high-frequency
   changes.
 - Provider-specific logging/metrics integration examples.
-- An observed draft-release run after an approved version tag is pushed.
+- An observed release run after an approved version tag is pushed.
 - Capacity measurements from a production-like game workload; generic library defaults cannot supply
   those measurements.
 
 ## Prioritized remaining work
 
 1. Execute and record the manual Studio, isolated-universe, and multi-client replication gates.
-2. Create the approved version tag, inspect the generated draft and checksums, and publish Wally
-   manually only if the complete candidate is approved.
+2. Create the approved version tag, inspect the published prerelease and checksums, and publish
+   Wally manually only if the complete candidate is approved.
 
 All seven planned implementation phases are complete for the current release-candidate contract.
 The remaining work is release validation and game-specific capacity evidence, not another automatic
