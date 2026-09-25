@@ -18,7 +18,8 @@ conservative: a feature is not called production-ready merely because an impleme
   normal records; live read-only access and a model/Vector3-codec round trip also pass.
 - Release engineering: pinned Rokit/Aftman manifests, pull-request CI, candidate artifact upload,
   package-content checks, and draft tag-release automation are defined. The equivalent local gate
-  passes; the GitHub workflows require their first pushed run before they can be considered observed.
+  passes. GitHub CI run `36128965187` passed every step on commit `160b942`, including candidate
+  artifact upload.
 
 ## Concise tree
 
@@ -69,16 +70,15 @@ OmniStore/
 - A live client/server replication test matrix covering latency, disconnects, and high-frequency
   changes.
 - Provider-specific logging/metrics integration examples.
-- Observed GitHub CI and draft-release runs after these workflows are pushed.
+- An observed draft-release run after an approved version tag is pushed.
 - Capacity measurements from a production-like game workload; generic library defaults cannot supply
   those measurements.
 
 ## Prioritized remaining work
 
-1. Review and push the release-candidate branch, then observe the first CI run.
-2. Execute and record the manual Studio, isolated-universe, and multi-client replication gates.
-3. Choose a release version only after review; update the changelog, tag it, inspect the generated
-   draft, and publish Wally manually if approved.
+1. Execute and record the manual Studio, isolated-universe, and multi-client replication gates.
+2. Create the approved version tag, inspect the generated draft and checksums, and publish Wally
+   manually only if the complete candidate is approved.
 
 All seven planned implementation phases are complete for the current release-candidate contract.
 The remaining work is release validation and game-specific capacity evidence, not another automatic
