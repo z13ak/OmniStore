@@ -32,27 +32,15 @@ try {
     if (-not $SkipPackage) {
         $manifest = wally manifest-to-json | ConvertFrom-Json
         if ($LASTEXITCODE -ne 0) { throw "Wally manifest validation failed" }
-        $archive = "build/OmniStore-$($manifest.package.version).tar.gz"
+        $archive = "build/OmniStore-$($manifest.package.version).zip"
         wally package --output $archive
         if ($LASTEXITCODE -ne 0) { throw "Wally package failed" }
-
-        $entries = @(tar -tf $archive)
-        if ($LASTEXITCODE -ne 0) { throw "could not inspect Wally archive" }
-        foreach ($required in @("src/init.lua", "default.project.json", "wally.toml", "LICENSE")) {
-            if (-not ($entries | Where-Object { $_.TrimStart(".", "/") -eq $required })) {
-                throw "Wally archive is missing $required"
-            }
-        }
-        $forbidden = $entries | Where-Object {
-            $_.TrimStart(".", "/") -match "^(build|dist|tests|DevPackages|Packages)(/|$)"
-        }
-        if ($forbidden) {
-            throw "Wally archive contains development files: $($forbidden -join ', ')"
-        }
+        python scripts/verify_package.py $archive
+        if ($LASTEXITCODE -ne 0) { throw "Wally package content validation failed" }
     }
 
     $artifactPaths = @(Get-ChildItem build -File | Where-Object {
-        $_.Extension -in @(".rbxm", ".rbxlx", ".gz")
+        $_.Extension -in @(".rbxm", ".rbxlx", ".zip")
     })
     $checksums = $artifactPaths | Get-FileHash -Algorithm SHA256 | ForEach-Object {
         "$($_.Hash.ToLowerInvariant())  $([IO.Path]::GetFileName($_.Path))"

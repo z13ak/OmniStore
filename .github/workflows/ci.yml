@@ -21,7 +21,7 @@ jobs:
 
     steps:
       - name: Check out source
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Install pinned Roblox tools
         uses: CompeyDev/setup-rokit@v0.2.1
@@ -50,32 +50,24 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          version="$(wally manifest-to-json | python3 -c 'import json,sys; print(json.load(sys.stdin)["package"]["version"])')"
-          archive="build/OmniStore-${version}.tar.gz"
+          archive="$RUNNER_TEMP/OmniStore-package.zip"
           wally package --output "$archive"
-          tar -tf "$archive" > build/package-files.txt
-          for required in src/init.lua default.project.json wally.toml LICENSE; do
-            sed 's#^\./##' build/package-files.txt | grep -Fx "$required" >/dev/null
-          done
-          if sed 's#^\./##' build/package-files.txt | grep -E '^(build|dist|tests|DevPackages|Packages)(/|$)'; then
-            echo "Wally package contains development-only files" >&2
-            exit 1
-          fi
-          sha256sum build/*.rbxm build/*.rbxlx build/*.tar.gz > build/SHA256SUMS.txt
+          python3 scripts/verify_package.py "$archive"
+          cp "$archive" build/OmniStore-package.zip
+          sha256sum build/*.rbxm build/*.rbxlx build/OmniStore-package.zip > build/SHA256SUMS.txt
 
       - name: Check whitespace
         run: git diff --check
 
       - name: Upload candidate artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: OmniStore-candidate-${{ github.sha }}
           path: |
             build/OmniStore.rbxm
             build/OmniStoreDevelopment.rbxlx
             build/OmniStoreTests.rbxlx
-            build/OmniStore-*.tar.gz
-            build/package-files.txt
+            build/OmniStore-package.zip
             build/SHA256SUMS.txt
           if-no-files-found: error
           retention-days: 14

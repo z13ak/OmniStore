@@ -26,6 +26,8 @@ All notable changes follow Keep a Changelog. This project uses semantic versioni
 
 ### Fixed
 
+- Label Wally output as ZIP and validate its actual archive format consistently across Windows and
+  Linux release gates.
 - Bound serialization traversal with a configurable maximum depth and made the JSON payload safety
   limit configurable.
 - Preserve manager retry and lease defaults when a store supplies only a partial override.

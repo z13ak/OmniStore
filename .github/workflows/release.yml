@@ -22,7 +22,7 @@ jobs:
 
     steps:
       - name: Check out tagged source
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           ref: ${{ env.RELEASE_TAG }}
 
@@ -52,18 +52,13 @@ jobs:
           rojo build default.project.json --output dist/OmniStore.rbxm
           rojo build dev.project.json --output dist/OmniStoreDevelopment.rbxlx
           rojo build test.project.json --output dist/OmniStoreTests.rbxlx
-          wally package --output "dist/OmniStore-${RELEASE_TAG#v}.tar.gz"
-          tar -tf "dist/OmniStore-${RELEASE_TAG#v}.tar.gz" > dist/package-files.txt
-          for required in src/init.lua default.project.json wally.toml LICENSE; do
-            sed 's#^\./##' dist/package-files.txt | grep -Fx "$required" >/dev/null
-          done
-          if sed 's#^\./##' dist/package-files.txt | grep -E '^(build|dist|tests|DevPackages|Packages)(/|$)'; then
-            echo "Wally package contains development-only files" >&2
-            exit 1
-          fi
+          archive="$RUNNER_TEMP/OmniStore-${RELEASE_TAG#v}.zip"
+          wally package --output "$archive"
+          python3 scripts/verify_package.py "$archive"
+          cp "$archive" "dist/OmniStore-${RELEASE_TAG#v}.zip"
           git diff --exit-code -- wally.lock
           git diff --check
-          sha256sum dist/*.rbxm dist/*.rbxlx dist/*.tar.gz > dist/SHA256SUMS.txt
+          sha256sum dist/*.rbxm dist/*.rbxlx dist/*.zip > dist/SHA256SUMS.txt
 
       - name: Create draft GitHub release
         env:
