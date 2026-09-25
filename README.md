@@ -1,4 +1,15 @@
-# OmniStore
+<p align="center">
+  <img src="assets/github-banner.png" alt="OmniStore — Typed persistence for Roblox" width="100%">
+</p>
+
+<p align="center">
+  <a href="https://github.com/z13ak/OmniStore/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/z13ak/OmniStore/actions/workflows/ci.yml/badge.svg"></a>
+  <a href="https://github.com/z13ak/OmniStore/releases"><img alt="Release" src="https://img.shields.io/github/v/release/z13ak/OmniStore?include_prereleases&sort=semver"></a>
+  <a href="LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/license-MIT-22c55e.svg"></a>
+  <img alt="Language: Luau" src="https://img.shields.io/badge/language-Luau-00A2FF.svg">
+  <img alt="Package manager: Wally" src="https://img.shields.io/badge/package-Wally-8B5CF6.svg">
+  <img alt="Build: Rojo 7" src="https://img.shields.io/badge/build-Rojo%207-EC4899.svg">
+</p>
 
 OmniStore is a typed, game-agnostic Roblox persistence library built around one small model:
 
@@ -9,8 +20,8 @@ entity. OmniStore does not hardcode game concepts. It adds schemas, migrations, 
 leases, safe mutation helpers, autosave, retry/backoff, request-budget checks, lifecycle signals,
 and optional read-only replication on top of Roblox DataStore primitives.
 
-> **Status:** `0.1.0` is an initial public release candidate. Exercise the memory adapter and
-> Studio API-services testing before using it with production data.
+> **Status:** `0.2.0-rc.1` is a public release candidate. Complete Studio API-services testing in a
+> separate universe before using it with production data.
 
 ## Quick start
 
@@ -60,7 +71,7 @@ record API so dirty tracking and validation cannot be bypassed accidentally.
 - Saves retry retryable adapter failures with exponential backoff and jitter.
 - Concurrent save calls coalesce, while mutations made during a save remain dirty.
 - `CloseAsync` saves and releases the lease in the same atomic update.
-- In-memory transactions roll back callback/validation failures.
+- In-memory transactions use isolated drafts and publish changes only after a successful commit.
 - Replication is server-authoritative and exposes only explicitly allowed paths.
 
 ## Important limits
@@ -80,17 +91,25 @@ atomic compare/transform behavior for one key; operations across keys are not at
 - [Failure semantics](docs/FAILURE_SEMANTICS.md)
 - [Reliability and diagnostics](docs/RELIABILITY.md)
 - [Sessions and read-only access](docs/SESSIONS.md)
+- [Schemas, models, and codecs](docs/SCHEMAS_MODELS_CODECS.md)
+- [Transactions](docs/TRANSACTIONS.md)
+- [Replication](docs/REPLICATION.md)
 - [Migrations](docs/MIGRATIONS.md)
+- [Error reference](docs/ERRORS.md)
+- [Testing](docs/TESTING.md)
+- [Performance and capacity](docs/PERFORMANCE.md)
+- [Compatibility and upgrades](docs/COMPATIBILITY.md)
+- [Incident response](docs/INCIDENT_RESPONSE.md)
+- [Release process](docs/RELEASE.md)
 - [Security and replication](docs/SECURITY.md)
 - [Examples](examples)
 
 ## Installation and development
 
-With [Aftman](https://github.com/LPGhatguy/aftman) and
-[Wally](https://wally.run/) installed:
+With [Rokit](https://github.com/rojo-rbx/rokit) installed:
 
 ```sh
-aftman install
+rokit install
 wally install
 rojo build default.project.json -o OmniStore.rbxm
 rojo build dev.project.json -o OmniStoreDevelopment.rbxlx
@@ -99,10 +118,16 @@ stylua --check src tests examples
 selene src tests examples
 ```
 
+On Windows, `./scripts/verify.ps1` runs the complete local static, build, and package gate. Aftman
+configuration remains available for existing contributors during the toolchain transition.
+
 After `wally install`, connect Studio to `test.project.json`; `tests/init.server.lua` runs the
 TestEZ suite. DataStore testing requires a
 published test place with **Enable Studio Access to API Services** enabled; use a separate test
 universe, never a production universe.
+
+Pull requests run formatting, linting, all Rojo builds, and Wally package inspection in CI. Studio
+TestEZ and isolated-universe DataStore smoke tests remain explicit runtime release gates.
 
 ## License
 

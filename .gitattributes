@@ -1,0 +1,11 @@
+* text=auto
+*.lua text eol=crlf
+*.md text eol=crlf
+*.json text eol=lf
+*.toml text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+*.sh text eol=lf
+*.ps1 text eol=crlf
+*.rbxm binary
+*.rbxlx binary

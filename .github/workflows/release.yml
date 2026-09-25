@@ -1,0 +1,83 @@
+name: Release candidate
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing v-prefixed tag to package
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
+
+    steps:
+      - name: Check out tagged source
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.RELEASE_TAG }}
+
+      - name: Install pinned Roblox tools
+        uses: CompeyDev/setup-rokit@v0.2.1
+        with:
+          version: v1.2.0
+
+      - name: Verify tag and manifest versions
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="$(wally manifest-to-json | python3 -c 'import json,sys; print(json.load(sys.stdin)["package"]["version"])')"
+          test "$RELEASE_TAG" = "v$version"
+          grep -F "## [$version] - " CHANGELOG.md >/dev/null
+          if awk '/^## \[Unreleased\]/{active=1; next} /^## \[/{active=0} active' CHANGELOG.md | grep -q '^- '; then
+            echo "Move Unreleased entries into the tagged changelog section first" >&2
+            exit 1
+          fi
+
+      - name: Install and verify
+        run: |
+          wally install
+          stylua --check src tests examples
+          selene src tests examples
+          mkdir -p dist
+          rojo build default.project.json --output dist/OmniStore.rbxm
+          rojo build dev.project.json --output dist/OmniStoreDevelopment.rbxlx
+          rojo build test.project.json --output dist/OmniStoreTests.rbxlx
+          wally package --output "dist/OmniStore-${RELEASE_TAG#v}.tar.gz"
+          tar -tf "dist/OmniStore-${RELEASE_TAG#v}.tar.gz" > dist/package-files.txt
+          for required in src/init.lua default.project.json wally.toml LICENSE; do
+            sed 's#^\./##' dist/package-files.txt | grep -Fx "$required" >/dev/null
+          done
+          if sed 's#^\./##' dist/package-files.txt | grep -E '^(build|dist|tests|DevPackages|Packages)(/|$)'; then
+            echo "Wally package contains development-only files" >&2
+            exit 1
+          fi
+          git diff --exit-code -- wally.lock
+          git diff --check
+          sha256sum dist/*.rbxm dist/*.rbxlx dist/*.tar.gz > dist/SHA256SUMS.txt
+
+      - name: Create draft GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          prerelease=()
+          if [[ "${RELEASE_TAG#v}" == *-* ]]; then
+            prerelease+=(--prerelease)
+          fi
+          gh release create "$RELEASE_TAG" \
+            --draft \
+            --verify-tag \
+            --title "$RELEASE_TAG" \
+            --generate-notes \
+            "${prerelease[@]}" \
+            dist/*

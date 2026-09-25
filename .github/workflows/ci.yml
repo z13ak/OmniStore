@@ -1,0 +1,81 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: Format, lint, build, and package
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Install pinned Roblox tools
+        uses: CompeyDev/setup-rokit@v0.2.1
+        with:
+          version: v1.2.0
+
+      - name: Install locked development dependencies
+        run: |
+          wally install
+          git diff --exit-code -- wally.lock
+
+      - name: Check formatting
+        run: stylua --check src tests examples
+
+      - name: Lint
+        run: selene src tests examples
+
+      - name: Build Rojo artifacts
+        run: |
+          mkdir -p build
+          rojo build default.project.json --output build/OmniStore.rbxm
+          rojo build dev.project.json --output build/OmniStoreDevelopment.rbxlx
+          rojo build test.project.json --output build/OmniStoreTests.rbxlx
+
+      - name: Validate Wally package contents
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="$(wally manifest-to-json | python3 -c 'import json,sys; print(json.load(sys.stdin)["package"]["version"])')"
+          archive="build/OmniStore-${version}.tar.gz"
+          wally package --output "$archive"
+          tar -tf "$archive" > build/package-files.txt
+          for required in src/init.lua default.project.json wally.toml LICENSE; do
+            sed 's#^\./##' build/package-files.txt | grep -Fx "$required" >/dev/null
+          done
+          if sed 's#^\./##' build/package-files.txt | grep -E '^(build|dist|tests|DevPackages|Packages)(/|$)'; then
+            echo "Wally package contains development-only files" >&2
+            exit 1
+          fi
+          sha256sum build/*.rbxm build/*.rbxlx build/*.tar.gz > build/SHA256SUMS.txt
+
+      - name: Check whitespace
+        run: git diff --check
+
+      - name: Upload candidate artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: OmniStore-candidate-${{ github.sha }}
+          path: |
+            build/OmniStore.rbxm
+            build/OmniStoreDevelopment.rbxlx
+            build/OmniStoreTests.rbxlx
+            build/OmniStore-*.tar.gz
+            build/package-files.txt
+            build/SHA256SUMS.txt
+          if-no-files-found: error
+          retention-days: 14

@@ -1,0 +1,14 @@
+{
+  "name": "OmniStoreDevelopment",
+  "tree": {
+    "$className": "DataModel",
+    "ReplicatedStorage": {
+      "Packages": {
+        "$className": "Folder",
+        "OmniStore": {
+          "$path": "src"
+        }
+      }
+    }
+  }
+}

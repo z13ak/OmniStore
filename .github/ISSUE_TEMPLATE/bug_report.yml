@@ -1,0 +1,55 @@
+name: Bug report
+description: Report a reproducible OmniStore defect without including sensitive data.
+title: "[Bug]: "
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: Do not report security vulnerabilities or include production record contents here. Use the private process in SECURITY.md.
+  - type: input
+    id: version
+    attributes:
+      label: OmniStore version or commit
+      placeholder: 0.2.0-rc.1 or commit SHA
+    validations:
+      required: true
+  - type: dropdown
+    id: adapter
+    attributes:
+      label: Adapter
+      options:
+        - MemoryAdapter
+        - DataStoreAdapter
+        - Custom adapter
+    validations:
+      required: true
+  - type: textarea
+    id: behavior
+    attributes:
+      label: Expected and actual behavior
+      description: Include structured error codes/categories, but redact keys, payloads, and identifiers.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Minimal reproduction
+      description: Provide the smallest safe code sample and exact lifecycle steps.
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: Studio/server context, relevant configuration, and whether API Services were enabled.
+    validations:
+      required: true
+  - type: checkboxes
+    id: safety
+    attributes:
+      label: Safety confirmation
+      options:
+        - label: This report contains no secrets, production record data, or private identifiers.
+          required: true
+        - label: This is not a privately reportable security vulnerability.
+          required: true
