@@ -12,9 +12,6 @@ rokit install
 wally install
 ```
 
-On Windows, contributors with the legacy Aftman setup may use `aftman install`; its versions remain
-aligned with `rokit.toml` during the transition.
-
 Run `./scripts/verify.ps1` in PowerShell before opening a pull request. On other platforms, run the
 commands listed in the README and package with `wally package --output build/OmniStore.zip`.
 

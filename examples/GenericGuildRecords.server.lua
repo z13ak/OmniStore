@@ -21,13 +21,16 @@ local entities = database:GetStore("Entities", {
 })
 
 local loaded = entities:LoadAsync("knights-of-luau")
-if loaded.ok then
-	local guild = loaded.value
-	local transaction = guild:Transaction(function(record)
-		record:Increment("Treasury", 100)
-		record:Insert("Members", { UserId = 12345, Role = "Member" })
-	end)
-	if not transaction.ok then
-		warn(transaction.error.message)
-	end
+if not loaded.ok then
+	warn(loaded.error.code, loaded.error.message)
+	return
+end
+
+local guild = loaded.value
+local transaction = guild:Transaction(function(record)
+	record:Increment("Treasury", 100)
+	record:Insert("Members", { UserId = 12345, Role = "Member" })
+end)
+if not transaction.ok then
+	warn(transaction.error.code, transaction.error.message)
 end

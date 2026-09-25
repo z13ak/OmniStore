@@ -24,7 +24,15 @@ local WorldModel = OmniStore.Model.define({
 local database = OmniStore.new({ namespace = "ExampleGame" })
 local worlds = database:GetStore("Worlds", { model = WorldModel })
 local loaded = worlds:LoadAsync("overworld")
-if loaded.ok then
-	loaded.value:Increment("Visits")
-	loaded.value:Set("Spawn", Vector3.new(0, 20, 0))
+if not loaded.ok then
+	warn(loaded.error.code, loaded.error.message)
+	return
+end
+
+local changed = loaded.value:Transaction(function(world)
+	world:Increment("Visits")
+	world:Set("Spawn", Vector3.new(0, 20, 0))
+end)
+if not changed.ok then
+	warn(changed.error.code, changed.error.message)
 end

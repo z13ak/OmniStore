@@ -41,5 +41,5 @@ yield, perform I/O, invoke remotes, or re-enter live-record mutations. Authorize
 client-derived intent before placing it into a transaction; the draft is a consistency boundary,
 not an authorization boundary.
 
-Report vulnerabilities privately to the maintainer. No software can truthfully promise zero
-vulnerabilities.
+Report vulnerabilities through GitHub's private vulnerability reporting for this repository. See
+the root [security policy](../SECURITY.md) for what to include.
