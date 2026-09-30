@@ -4,6 +4,14 @@ All notable changes follow Keep a Changelog. This project uses semantic versioni
 
 ## [Unreleased]
 
+## [0.2.0-rc.2] - 2026-09-26
+
+### Changed
+
+- Tightened the README, security policy, and contributor guidance.
+- Improved failure handling in the guild, server, and typed-model examples.
+- Removed the internal development audit from the published documentation.
+
 ## [0.2.0-rc.1] - 2026-09-25
 
 ### Added

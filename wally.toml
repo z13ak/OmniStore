@@ -1,7 +1,7 @@
 [package]
 name = "omnistore/omnistore"
 description = "Typed, game-agnostic Roblox persistence with leases, migrations, and safe mutation APIs"
-version = "0.2.0-rc.1"
+version = "0.2.0-rc.2"
 license = "MIT"
 realm = "shared"
 registry = "https://github.com/UpliftGames/wally-index"

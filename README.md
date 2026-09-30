@@ -16,7 +16,7 @@ A record key can represent any durable entity: a player, server, guild, world, p
 specific to your game. Stores add schemas, migrations, session leases, autosave, and safe mutation
 helpers on top of Roblox DataStores. Read-only client replication is optional.
 
-> **Status:** `0.2.0-rc.1` is a public release candidate. Complete Studio API-services testing in a
+> **Status:** `0.2.0-rc.2` is a public release candidate. Complete Studio API-services testing in a
 > separate universe before using it with production data.
 
 ## Quick start
