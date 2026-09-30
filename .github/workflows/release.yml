@@ -48,16 +48,16 @@ jobs:
           wally install
           stylua --check src tests examples
           selene src tests examples
+          archive="$RUNNER_TEMP/OmniStore-${RELEASE_TAG#v}.zip"
+          wally package --output "$archive"
+          python3 scripts/verify_package.py "$archive"
+          git diff --exit-code -- wally.lock
+          git diff --check
           mkdir -p dist
           rojo build default.project.json --output dist/OmniStore.rbxm
           rojo build dev.project.json --output dist/OmniStoreDevelopment.rbxlx
           rojo build test.project.json --output dist/OmniStoreTests.rbxlx
-          archive="$RUNNER_TEMP/OmniStore-${RELEASE_TAG#v}.zip"
-          wally package --output "$archive"
-          python3 scripts/verify_package.py "$archive"
           cp "$archive" "dist/OmniStore-${RELEASE_TAG#v}.zip"
-          git diff --exit-code -- wally.lock
-          git diff --check
           sha256sum dist/*.rbxm dist/*.rbxlx dist/*.zip > dist/SHA256SUMS.txt
 
       - name: Publish GitHub release
