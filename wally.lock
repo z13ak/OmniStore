@@ -3,11 +3,11 @@
 registry = "test"
 
 [[package]]
-name = "omnistore/omnistore"
-version = "0.2.0-rc.2"
-dependencies = [["TestEZ", "roblox/testez@0.4.1"]]
-
-[[package]]
 name = "roblox/testez"
 version = "0.4.1"
 dependencies = []
+
+[[package]]
+name = "z13ak/omnistore"
+version = "0.2.0-rc.3"
+dependencies = [["TestEZ", "roblox/testez@0.4.1"]]

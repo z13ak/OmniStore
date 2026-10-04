@@ -4,6 +4,17 @@ All notable changes follow Keep a Changelog. This project uses semantic versioni
 
 ## [Unreleased]
 
+## [0.2.0-rc.3] - 2026-10-03
+
+### Changed
+
+- Changed the Wally package scope to `z13ak/omnistore`, matching the publishing account.
+- Documented installation through the Wally registry.
+
+### Fixed
+
+- Package release archives before creating generated artifact directories.
+
 ## [0.2.0-rc.2] - 2026-09-26
 
 ### Changed
