@@ -6,6 +6,9 @@ All notable changes follow Keep a Changelog. This project uses semantic versioni
 
 ### Fixed
 
+- Reject invalid manager-close limits before gating stores, reject malformed read-only envelopes
+  without leaking lifecycle state, and retain unknown codec wire meaning across copy/save cycles.
+
 - Gate shutdown before accepting more work, drain in-flight loads/deletes, and close records with
   bounded concurrency and coalesced close results.
 - Reject yielding/reentrant updates and yielding migrations; isolate retry transform decisions.
