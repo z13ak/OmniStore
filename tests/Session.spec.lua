@@ -23,6 +23,27 @@ return function()
 	end
 
 	describe("session semantics", function()
+		it("rejects scalar read-only envelopes without leaking the pending-load count", function()
+			local adapter = OmniStore.Adapters.Memory.new()
+			local original = adapter.Read
+			adapter.Read = function(self, key)
+				if key == "malformed" then
+					return { ok = true, value = 42 }
+				end
+				return original(self, key)
+			end
+			local store = OmniStore.new({ autoBindToClose = false }):GetStore("Malformed", {
+				adapter = adapter,
+				autosaveInterval = 0,
+				lease = { enabled = false },
+			})
+			expect(store:LoadAsync("malformed", { mode = "ReadOnly" }).error.code).to.equal(
+				"InvalidData"
+			)
+			expect(store:LoadAsync("healthy").ok).to.equal(true)
+			expect(store:CloseAsync(1).ok).to.equal(true)
+		end)
+
 		it("closes a lost-lease handle without another persistence request", function()
 			local now = 100
 			local function clock()

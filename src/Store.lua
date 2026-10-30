@@ -611,6 +611,9 @@ function Store:_readRecord(key: string, deadline: number?): Result<Types.StoredE
 	if not read.ok then
 		return read :: any
 	end
+	if read.value ~= nil and type(read.value) ~= "table" then
+		return Result.err("InvalidData", "stored envelope is malformed", false)
+	end
 	if read.value == nil or read.value.deleted == true then
 		return Result.err("NotFound", "record does not exist", false)
 	end
