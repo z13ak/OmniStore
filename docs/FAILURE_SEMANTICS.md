@@ -60,6 +60,11 @@ One record runs one persistence save at a time. A concurrent caller requests a f
 and waits for the active save cycle. If the first save fails, the cycle stops and returns the error.
 Mutations made after a snapshot never get incorrectly marked clean.
 
+Each save/close carries a unique `writeId` so a retry can recognize its own already committed
+envelope after response loss. This prevents duplicate revision increments and false lease-loss
+errors after a committed close. If every response is lost, the final error can still describe an
+uncertain outcome; no client-side library can prove durability without a successful confirmation.
+
 ## Deadlines and retry classification
 
 Public load, save, delete, record-close, store-close, and manager-close operations accept optional

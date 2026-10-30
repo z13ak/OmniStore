@@ -1,5 +1,7 @@
 --!strict
 
+local HttpService = game:GetService("HttpService")
+
 local DeepCopy = require(script.Parent.internal.DeepCopy)
 local CloseBatch = require(script.Parent.internal.CloseBatch)
 local Migrate = require(script.Parent.internal.Migrate)
@@ -623,6 +625,7 @@ function Store:_saveRecord(
 	release: boolean,
 	deadline: number?
 ): Result<Types.StoredEnvelope>
+	local writeId = HttpService:GenerateGUID(false)
 	local config = self._config
 	local lease = config.lease :: Types.LeaseConfig
 	local clock = config.clock :: () -> number
@@ -635,6 +638,7 @@ function Store:_saveRecord(
 		return encodedData :: any
 	end
 	local envelopeValidation = self:_validateSerialization({
+		writeId = writeId,
 		data = encodedData.value,
 		metadata = metadata,
 		typeId = if config.model then config.model.typeId else nil,
@@ -651,6 +655,10 @@ function Store:_saveRecord(
 	local updated = self:_update(key, function(current)
 		lostLease = false
 		missing = false
+		-- A previous attempt may have committed even though its response was lost.
+		if current and current.writeId == writeId then
+			return current
+		end
 		if not current then
 			missing = true
 			return nil
@@ -666,6 +674,7 @@ function Store:_saveRecord(
 		end
 		local now = clock()
 		return {
+			writeId = writeId,
 			data = DeepCopy(encodedData.value),
 			metadata = DeepCopy(metadata) :: { [string]: unknown },
 			typeId = if config.model then config.model.typeId else nil,
