@@ -2,6 +2,8 @@
 
 local Result = require(script.Parent.internal.Result)
 local Types = require(script.Parent.Types)
+local CodecWire = require(script.Parent.internal.CodecWire)
+local DeepCopy = require(script.Parent.internal.DeepCopy)
 
 export type Codec = Types.Codec
 export type UnknownTypePolicy = Types.UnknownTypePolicy
@@ -59,8 +61,10 @@ end
 
 function CodecRegistry:Encode(value: unknown): Types.Result<unknown>
 	local visiting: { [table]: boolean } = {}
-	local function encode(current: unknown, path: string): Types.Result<unknown>
-		for _, codec in self._codecs do
+	local function encode(current: unknown, path: string, wire: boolean?): Types.Result<unknown>
+		local preserveWire = wire == true
+			or (type(current) == "table" and CodecWire.isPreserved(current))
+		for _, codec in if preserveWire then {} else self._codecs do
 			local matchedOk, matched = pcall(codec.isType, current)
 			if not matchedOk then
 				return Result.err(
@@ -104,7 +108,7 @@ function CodecRegistry:Encode(value: unknown): Types.Result<unknown>
 		visiting[current] = true
 		local output = {}
 		for key, child in current do
-			local encodedChild = encode(child, `{path}.{tostring(key)}`)
+			local encodedChild = encode(child, `{path}.{tostring(key)}`, preserveWire)
 			if not encodedChild.ok then
 				visiting[current] = nil
 				return encodedChild
@@ -113,7 +117,7 @@ function CodecRegistry:Encode(value: unknown): Types.Result<unknown>
 		end
 		visiting[current] = nil
 		-- Escape an ordinary table that could otherwise be interpreted as a codec on load.
-		if output[TAG] == 1 and type(output[TYPE_ID]) == "string" then
+		if not preserveWire and output[TAG] == 1 and type(output[TYPE_ID]) == "string" then
 			return Result.ok({ [TAG] = 1, [TYPE_ID] = PLAIN_TABLE, [PAYLOAD] = output })
 		end
 		return Result.ok(output)
@@ -159,7 +163,7 @@ function CodecRegistry:Decode(value: unknown): Types.Result<unknown>
 			if not codec then
 				visiting[current] = nil
 				if self._unknownTypePolicy == "Preserve" then
-					return Result.ok(table.clone(current))
+					return Result.ok(CodecWire.mark(DeepCopy(current) :: table))
 				end
 				return Result.err(
 					"InvalidData",

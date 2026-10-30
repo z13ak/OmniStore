@@ -6,6 +6,86 @@ return function()
 	local OmniStore = require(ReplicatedStorage.Packages.OmniStore)
 
 	describe("codec registry", function()
+		local function futureRegistry()
+			local registry = OmniStore.CodecRegistry.new()
+			registry:Register({
+				typeId = "game.Future/v1",
+				isType = function(value)
+					return type(value) == "table" and value.Future == true
+				end,
+				encode = function(value)
+					return { Name = value.Name }
+				end,
+				decode = function(value)
+					return { Future = true, Name = value.Name }
+				end,
+			})
+			return registry
+		end
+
+		it("preserves unknown wire tags so newer readers can decode them", function()
+			local older = OmniStore.CodecRegistry.new({ unknownTypePolicy = "Preserve" })
+			local wire = { __omniCodec = 1, typeId = "game.Future/v1", value = { Name = "future" } }
+			local encoded = older:Encode(older:Decode(wire).value)
+			expect(encoded.value.typeId).to.equal("game.Future/v1")
+			local decoded = futureRegistry():Decode(encoded.value)
+			expect(decoded.ok).to.equal(true)
+			expect(decoded.value.Future).to.equal(true)
+			expect(decoded.value.Name).to.equal("future")
+		end)
+
+		it("retains unknown codec meaning through record copies and transaction saves", function()
+			local older = OmniStore.CodecRegistry.new({ unknownTypePolicy = "Preserve" })
+			local adapter = OmniStore.Adapters.Memory.new({
+				record = {
+					data = {
+						Item = {
+							__omniCodec = 1,
+							typeId = "game.Future/v1",
+							value = { Name = "future" },
+						},
+					},
+					metadata = {},
+					schemaVersion = 1,
+					revision = 0,
+					updatedAt = 1,
+				},
+			})
+			local store = OmniStore.new({ autoBindToClose = false }):GetStore("Older", {
+				adapter = adapter,
+				codecs = older,
+				autosaveInterval = 0,
+				lease = { enabled = false },
+			})
+			local record = store:LoadAsync("record").value
+			local copy = record:Get("Item").value
+			expect(record:Transaction(function(draft)
+				draft:Set("Item", copy)
+				draft:SetMetadata("reason", "preserve")
+			end).ok).to.equal(true)
+			expect(record:CloseAsync().ok).to.equal(true)
+			expect(adapter:Peek("record").data.Item.typeId).to.equal("game.Future/v1")
+			local reader = OmniStore.new({ autoBindToClose = false }):GetStore("Newer", {
+				adapter = adapter,
+				codecs = futureRegistry(),
+				autosaveInterval = 0,
+				lease = { enabled = false },
+			})
+			local loaded = reader:LoadAsync("record", { mode = "ReadOnly" })
+			expect(loaded.ok).to.equal(true)
+			expect(loaded.value:Get("Item").value.Future).to.equal(true)
+			reader:CloseAsync()
+			store:CloseAsync()
+		end)
+
+		it("still rejects cycles introduced into a preserved wire value", function()
+			local registry = OmniStore.CodecRegistry.new({ unknownTypePolicy = "Preserve" })
+			local preserved =
+				registry:Decode({ __omniCodec = 1, typeId = "game.Future/v1", value = {} }).value
+			preserved.value.Self = preserved
+			expect(registry:Encode(preserved).error.code).to.equal("InvalidData")
+		end)
+
 		it("round-trips ordinary tables that resemble registered codecs", function()
 			local registry = OmniStore.CodecRegistry.new()
 			OmniStore.Codecs.Roblox.registerAll(registry)

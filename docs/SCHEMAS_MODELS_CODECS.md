@@ -71,12 +71,18 @@ Codec IDs identify wire formats. Use a new ID when an incompatible encoding is i
 encode, and decode callbacks can run inside an `UpdateAsync` transform, so they must not yield or
 perform I/O and must be deterministic.
 
-Encoded tags reserve the table shape `{ __omniCodec = 1, typeId = string, value = ... }`. Avoid using
-that exact shape for ordinary game data. Duplicate IDs are rejected.
+Encoded tags reserve the table shape `{ __omniCodec = 1, typeId = string, value = ... }`. Ordinary
+tables of that shape are escaped to prevent reinterpretation. Duplicate IDs and the internal escape
+ID are rejected during registration.
 
 `Reject` fails on an unknown codec ID. `Preserve` retains the tagged serializable table unchanged so
 a newer server can understand it later. Preservation does not make the value meaningful to the
 current server, and a strict schema may still reject it.
+
+Preserved values retain their wire meaning through the library's defensive copies and transaction
+drafts, so a save by an older reader does not prevent a future reader from decoding the codec.
+Arbitrarily reconstructing such a value as a new plain table loses that provenance; new literal
+marker-shaped tables are intentionally escaped.
 
 ## Validation order
 
