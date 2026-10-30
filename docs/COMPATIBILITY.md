@@ -1,5 +1,11 @@
 # Compatibility and upgrades
 
+Codec registries reserve `omnistore.PlainTable/v1` to escape ordinary tables that resemble codec
+markers. Deploy readers supporting this escape before writing marker-shaped tables; older readers
+cannot decode the new escape. Existing unescaped marker-shaped values are inherently ambiguous and
+retain their legacy decoding behavior. Escaping cannot recover data already misinterpreted by an
+older reader.
+
 ## Supported environment
 
 | Surface | Policy |

@@ -9,6 +9,7 @@ export type UnknownTypePolicy = Types.UnknownTypePolicy
 local TAG = "__omniCodec"
 local TYPE_ID = "typeId"
 local PAYLOAD = "value"
+local PLAIN_TABLE = "omnistore.PlainTable/v1"
 
 local CodecRegistry = {}
 CodecRegistry.__index = CodecRegistry
@@ -42,6 +43,7 @@ end
 function CodecRegistry:Register(codec: Codec): CodecRegistry
 	assert(type(codec) == "table", "codec must be a table")
 	assert(type(codec.typeId) == "string" and validTypeId(codec.typeId), "codec typeId is invalid")
+	assert(codec.typeId ~= PLAIN_TABLE, "codec typeId is reserved for plain-table escaping")
 	assert(type(codec.isType) == "function", "codec isType must be a function")
 	assert(type(codec.encode) == "function", "codec encode must be a function")
 	assert(type(codec.decode) == "function", "codec decode must be a function")
@@ -110,6 +112,10 @@ function CodecRegistry:Encode(value: unknown): Types.Result<unknown>
 			output[key] = encodedChild.value
 		end
 		visiting[current] = nil
+		-- Escape an ordinary table that could otherwise be interpreted as a codec on load.
+		if output[TAG] == 1 and type(output[TYPE_ID]) == "string" then
+			return Result.ok({ [TAG] = 1, [TYPE_ID] = PLAIN_TABLE, [PAYLOAD] = output })
+		end
 		return Result.ok(output)
 	end
 	return encode(value, "$")
@@ -117,7 +123,11 @@ end
 
 function CodecRegistry:Decode(value: unknown): Types.Result<unknown>
 	local visiting: { [table]: boolean } = {}
-	local function decode(current: unknown, path: string): Types.Result<unknown>
+	local function decode(
+		current: unknown,
+		path: string,
+		plainTable: boolean?
+	): Types.Result<unknown>
 		if type(current) ~= "table" then
 			return Result.ok(current)
 		end
@@ -129,8 +139,22 @@ function CodecRegistry:Decode(value: unknown): Types.Result<unknown>
 			)
 		end
 		visiting[current] = true
-		if (current :: any)[TAG] == 1 and type((current :: any)[TYPE_ID]) == "string" then
+		if
+			not plainTable
+			and (current :: any)[TAG] == 1
+			and type((current :: any)[TYPE_ID]) == "string"
+		then
 			local typeId = (current :: any)[TYPE_ID] :: string
+			if typeId == PLAIN_TABLE then
+				local payload = (current :: any)[PAYLOAD]
+				if type(payload) ~= "table" then
+					visiting[current] = nil
+					return Result.err("InvalidData", `invalid escaped table at {path}`, false)
+				end
+				local result = decode(payload, `{path}<table>`, true)
+				visiting[current] = nil
+				return result
+			end
 			local codec = self._byTypeId[typeId]
 			if not codec then
 				visiting[current] = nil

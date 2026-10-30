@@ -6,6 +6,53 @@ return function()
 	local OmniStore = require(ReplicatedStorage.Packages.OmniStore)
 
 	describe("codec registry", function()
+		it("round-trips ordinary tables that resemble registered codecs", function()
+			local registry = OmniStore.CodecRegistry.new()
+			OmniStore.Codecs.Roblox.registerAll(registry)
+			local input = {
+				__omniCodec = 1,
+				typeId = "roblox.Vector3/v1",
+				value = { 1, 2, 3 },
+				Extra = "ordinary data",
+				Position = Vector3.one,
+			}
+			local result = registry:Decode(registry:Encode(input).value)
+			expect(result.ok).to.equal(true)
+			expect(type(result.value)).to.equal("table")
+			expect(result.value.Extra).to.equal("ordinary data")
+			expect(result.value.typeId).to.equal(input.typeId)
+			expect(result.value.value[3]).to.equal(3)
+			expect(result.value.Position).to.equal(Vector3.one)
+		end)
+
+		it("escapes unknown and escape-marker tables at nested paths", function()
+			local registry = OmniStore.CodecRegistry.new()
+			for _, typeId in { "game.Future/v1", "omnistore.PlainTable/v1" } do
+				local input = { Nested = { __omniCodec = 1, typeId = typeId, value = "literal" } }
+				local result = registry:Decode(registry:Encode(input).value)
+				expect(result.ok).to.equal(true)
+				expect(result.value.Nested.typeId).to.equal(typeId)
+				expect(result.value.Nested.value).to.equal("literal")
+			end
+		end)
+
+		it("can re-encode preserved unknown wire values without changing their data", function()
+			local registry = OmniStore.CodecRegistry.new({ unknownTypePolicy = "Preserve" })
+			local wire = { __omniCodec = 1, typeId = "game.Future/v1", value = { Name = "future" } }
+			local preserved = registry:Decode(wire)
+			local result = registry:Decode(registry:Encode(preserved.value).value)
+			expect(result.ok).to.equal(true)
+			expect(result.value.typeId).to.equal(wire.typeId)
+			expect(result.value.value.Name).to.equal("future")
+		end)
+
+		it("rejects malformed escape payloads", function()
+			local registry = OmniStore.CodecRegistry.new()
+			local result =
+				registry:Decode({ __omniCodec = 1, typeId = "omnistore.PlainTable/v1", value = 4 })
+			expect(result.ok).to.equal(false)
+		end)
+
 		it("round-trips registered Roblox datatypes through persistence", function()
 			local codecs = OmniStore.CodecRegistry.new()
 			OmniStore.Codecs.Roblox.registerAll(codecs)
