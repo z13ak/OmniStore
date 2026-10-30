@@ -512,6 +512,10 @@ function Store:_loadRecord(
 		local staleRecovered = false
 		local preparationFailure: Types.Failure? = nil
 		local updated = self:_update(key, function(current)
+			blocked = false
+			staleRejected = false
+			staleRecovered = false
+			preparationFailure = nil
 			local now = clock()
 			local prepared = self:_prepareData(current)
 			if not prepared.ok then
@@ -645,6 +649,8 @@ function Store:_saveRecord(
 	local lostLease = false
 	local missing = false
 	local updated = self:_update(key, function(current)
+		lostLease = false
+		missing = false
 		if not current then
 			missing = true
 			return nil
@@ -694,6 +700,7 @@ function Store:_renewRecord(key: string, owner: string): Result<Types.StoredEnve
 	local lostLease = false
 	local clock = self._config.clock :: () -> number
 	local updated = self:_update(key, function(current)
+		lostLease = false
 		if not current or not current.lease or current.lease.owner ~= owner then
 			lostLease = true
 			return nil
