@@ -4,6 +4,7 @@ local HttpService = game:GetService("HttpService")
 local RunService = game:GetService("RunService")
 
 local Config = require(script.Parent.internal.Config)
+local CloseBatch = require(script.Parent.internal.CloseBatch)
 local DataStoreAdapter = require(script.Parent.adapters.DataStoreAdapter)
 local Result = require(script.Parent.internal.Result)
 local Store = require(script.Parent.Store)
@@ -20,6 +21,8 @@ export type OmniStore = typeof(setmetatable(
 		_owner: string,
 		_session: Types.SessionIdentity,
 		_closed: boolean,
+		_closing: boolean,
+		_lastCloseResult: Types.Result<nil>?,
 	},
 	OmniStore
 ))
@@ -49,6 +52,8 @@ function OmniStore.new(config: Types.OmniStoreConfig?): OmniStore
 		_owner = owner,
 		_session = session,
 		_closed = false,
+		_closing = false,
+		_lastCloseResult = nil,
 	}, OmniStore)
 
 	if value.autoBindToClose ~= false and RunService:IsServer() then
@@ -60,7 +65,7 @@ function OmniStore.new(config: Types.OmniStoreConfig?): OmniStore
 end
 
 function OmniStore:GetStore(name: string, storeConfig: Types.StoreConfig?): Store.Store
-	assert(not self._closed, "OmniStore is closed")
+	assert(not self._closed and not self._closing, "OmniStore is closed or closing")
 	assert(
 		name ~= "" and #name <= 50 and not string.find(name, "[%c]"),
 		"store name must be 1-50 bytes and contain no control characters"
@@ -99,15 +104,30 @@ function OmniStore:CloseAsync(timeout: number?): Types.Result<nil>
 		return Result.ok(nil)
 	end
 	local deadline = os.clock() + math.max(0, timeout or self._config.closeTimeout or 25)
-	local firstFailure: Types.Failure? = nil
-	for _, store in self._stores do
-		local result = store:CloseAsync(math.max(0, deadline - os.clock()))
-		if not result.ok and not firstFailure then
-			firstFailure = result
+	if self._closing then
+		while self._closing do
+			if os.clock() >= deadline then
+				return Result.err("Timeout", "timed out waiting for database close", true)
+			end
+			task.wait(0.03)
 		end
+		return self._lastCloseResult or Result.ok(nil)
 	end
-	if firstFailure then
-		return firstFailure
+	self._closing = true
+	local stores = {}
+	for _, store in self._stores do
+		store:_beginClose()
+		table.insert(stores, store)
+	end
+	local defaults = self._config.defaultStoreConfig
+	local limit = if defaults then defaults.maxConcurrentBackgroundTasks or 4 else 4
+	local result = CloseBatch.run(stores, function(store, remaining)
+		return store:CloseAsync(remaining)
+	end, limit, deadline, os.clock, task.wait)
+	self._lastCloseResult = result
+	self._closing = false
+	if not result.ok then
+		return result
 	end
 	self._closed = true
 	return Result.ok(nil)

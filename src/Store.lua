@@ -1,6 +1,7 @@
 --!strict
 
 local DeepCopy = require(script.Parent.internal.DeepCopy)
+local CloseBatch = require(script.Parent.internal.CloseBatch)
 local Migrate = require(script.Parent.internal.Migrate)
 local Reconcile = require(script.Parent.internal.Reconcile)
 local Record = require(script.Parent.Record)
@@ -43,6 +44,10 @@ export type Store = typeof(setmetatable(
 		_session: Types.SessionIdentity,
 		_records: { [string]: Record.Record },
 		_closed: boolean,
+		_closing: boolean,
+		_closeRunning: boolean,
+		_lastCloseResult: Result<nil>?,
+		_loading: number,
 		_scheduler: Scheduler.Scheduler,
 	},
 	Store
@@ -62,6 +67,10 @@ function Store.new(
 		_session = session,
 		_records = {},
 		_closed = false,
+		_closing = false,
+		_closeRunning = false,
+		_lastCloseResult = nil,
+		_loading = 0,
 		_scheduler = nil :: any,
 	}, Store)
 	self._scheduler = Scheduler.new(
@@ -698,7 +707,7 @@ function Store:LoadAsync(
 	key: string | number,
 	options: number | Types.LoadOptions?
 ): Result<Record.Record>
-	if self._closed then
+	if self._closed or self._closing then
 		return Result.err("Closed", "store is closed", false)
 	end
 	local normalized = self:_normalizeKey(key)
@@ -734,7 +743,9 @@ function Store:LoadAsync(
 
 	local record = Record.new(self :: any, normalized.value, self._owner, mode == "ReadOnly")
 	self._records[normalized.value] = record
+	self._loading += 1
 	local loaded = record:LoadAsync(loadOptions.timeout, staleLeasePolicy)
+	self._loading -= 1
 	if not loaded.ok then
 		self._records[normalized.value] = nil
 	end
@@ -828,26 +839,50 @@ function Store:CloseRecordAsync(key: string | number, timeout: number?): Result<
 	return record:CloseAsync(timeout)
 end
 
+function Store:_beginClose()
+	self._closing = true
+end
+
 function Store:CloseAsync(timeout: number?): Result<nil>
 	if self._closed then
 		return Result.ok(nil)
 	end
 	local clock = self._config.monotonicClock :: () -> number
 	local deadline = clock() + math.max(0, timeout or (self._config.closeTimeout :: number))
-	local firstFailure: Types.Failure? = nil
+	local waitFunction = self._config.wait :: (number) -> ()
+	if self._closeRunning then
+		while self._closeRunning do
+			if clock() >= deadline then
+				return Result.err("Timeout", "timed out waiting for store close", true)
+			end
+			waitFunction(0.03)
+		end
+		return self._lastCloseResult or Result.ok(nil)
+	end
+	self:_beginClose()
+	self._closeRunning = true
+	while self._loading > 0 do
+		if clock() >= deadline then
+			local failure = Result.err("Timeout", "timed out waiting for record loads", true)
+			self._closing = false
+			self._closeRunning = false
+			self._lastCloseResult = failure
+			return failure
+		end
+		waitFunction(0.03)
+	end
 	local records = {}
 	for _, record in self._records do
 		table.insert(records, record)
 	end
-	for _, record in records do
-		local remaining = math.max(0, deadline - clock())
-		local closed = record:CloseAsync(remaining)
-		if not closed.ok and not firstFailure then
-			firstFailure = closed
-		end
-	end
-	if firstFailure then
-		return firstFailure
+	local result = CloseBatch.run(records, function(record, remaining)
+		return record:CloseAsync(remaining)
+	end, self._config.maxConcurrentBackgroundTasks :: number, deadline, clock, waitFunction)
+	self._lastCloseResult = result
+	self._closeRunning = false
+	if not result.ok then
+		self._closing = false
+		return result
 	end
 	self._closed = true
 	self._scheduler:Close()

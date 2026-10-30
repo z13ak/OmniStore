@@ -75,6 +75,8 @@ export type Record = typeof(setmetatable(
 		_saving: boolean,
 		_saveRequested: boolean,
 		_lastSaveResult: Result<nil>?,
+		_closeRunning: boolean,
+		_lastCloseResult: Result<nil>?,
 		_stopBackground: boolean,
 		_backgroundJobs: { { Cancel: (self: any) -> () } },
 		_inTransaction: boolean,
@@ -108,6 +110,8 @@ function Record.new(store: StoreLike, key: string, owner: string, readOnly: bool
 		_saving = false,
 		_saveRequested = false,
 		_lastSaveResult = nil,
+		_closeRunning = false,
+		_lastCloseResult = nil,
 		_stopBackground = false,
 		_backgroundJobs = {},
 		_inTransaction = false,
@@ -251,6 +255,9 @@ function Record:_startBackgroundTasks()
 					return nil
 				end
 				local renewed = self._store:_renewRecord(self.Key, self._owner)
+				if self._stopBackground or self.State ~= "Active" then
+					return nil
+				end
 				if not renewed.ok then
 					if renewed.error.code == "LeaseLost" then
 						self:_setState("LeaseLost")
@@ -598,7 +605,7 @@ function Record:SaveAsync(timeout: number?): Result<nil>
 	return result
 end
 
-function Record:CloseAsync(timeout: number?): Result<nil>
+function Record:_closeOnce(timeout: number?): Result<nil>
 	if self._inTransaction or self._inUpdate then
 		return Result.err("Conflict", "record cannot close during a mutation callback", false)
 	end
@@ -651,6 +658,32 @@ function Record:CloseAsync(timeout: number?): Result<nil>
 	self._store:_forgetRecord(self.Key)
 	self.Changed:Destroy()
 	self.LifecycleChanged:Destroy()
+	return result
+end
+
+function Record:CloseAsync(timeout: number?): Result<nil>
+	local clock = self._store._config.monotonicClock :: () -> number
+	local deadline = clock() + math.max(0, timeout or (self._store._config.closeTimeout :: number))
+	if self._closeRunning then
+		while self._closeRunning do
+			if clock() >= deadline then
+				return Result.err("Timeout", "timed out waiting for record close", true)
+			end
+			(self._store._config.wait :: (number) -> ())(0.03)
+		end
+		return self._lastCloseResult or Result.ok(nil)
+	end
+	self._closeRunning = true
+	local ok, result = pcall(self._closeOnce, self, math.max(0, deadline - clock()))
+	if not ok then
+		result = Result.err("PersistenceFailed", "record close failed", false, result)
+		if self.State == "Closing" then
+			self:_setState("Active")
+			self:_startBackgroundTasks()
+		end
+	end
+	self._lastCloseResult = result
+	self._closeRunning = false
 	return result
 end
 

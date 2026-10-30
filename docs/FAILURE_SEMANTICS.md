@@ -46,6 +46,14 @@ process can terminate abruptly, so completion cannot be guaranteed. Autosave lim
 shorter intervals increase request load. Expired leases allow later servers to recover after an
 unclean shutdown.
 
+Closing rejects new loads and waits for loads already in flight before draining their records.
+Record closes run with bounded concurrency, using `maxConcurrentBackgroundTasks` as the per-store
+limit and one shared deadline. Manager close gates every store before starting its bounded store
+workers (the manager default-store concurrency setting, or four). Concurrent close callers share
+the active result, subject to their own wait deadlines. A failed close leaves remaining records
+available for retry; already closed records stay closed. One stalled platform request can exceed
+the deadline, but does not prevent other workers from attempting saves.
+
 ## Save coalescing
 
 One record runs one persistence save at a time. A concurrent caller requests a follow-up snapshot
