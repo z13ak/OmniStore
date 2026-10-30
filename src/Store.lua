@@ -48,6 +48,7 @@ export type Store = typeof(setmetatable(
 		_closeRunning: boolean,
 		_lastCloseResult: Result<nil>?,
 		_loading: number,
+		_deleting: { [string]: boolean },
 		_scheduler: Scheduler.Scheduler,
 	},
 	Store
@@ -71,6 +72,7 @@ function Store.new(
 		_closeRunning = false,
 		_lastCloseResult = nil,
 		_loading = 0,
+		_deleting = {},
 		_scheduler = nil :: any,
 	}, Store)
 	self._scheduler = Scheduler.new(
@@ -369,7 +371,10 @@ function Store:_prepareData(envelope: Types.StoredEnvelope?): Result<Types.Store
 			return templateValidation
 		end
 	end
-	if envelope == nil then
+	if envelope ~= nil and type(envelope) ~= "table" then
+		return Result.err("InvalidData", "stored envelope is malformed", false)
+	end
+	if envelope == nil or envelope.deleted == true then
 		local initialData = DeepCopy(if config.template == nil then {} else config.template)
 		local initialMetadata = DeepCopy(config.metadata or {}) :: { [string]: unknown }
 		local validationError = self:_validate(initialData)
@@ -600,7 +605,7 @@ function Store:_readRecord(key: string, deadline: number?): Result<Types.StoredE
 	if not read.ok then
 		return read :: any
 	end
-	if read.value == nil then
+	if read.value == nil or read.value.deleted == true then
 		return Result.err("NotFound", "record does not exist", false)
 	end
 	return self:_prepareData(read.value)
@@ -642,6 +647,11 @@ function Store:_saveRecord(
 	local updated = self:_update(key, function(current)
 		if not current then
 			missing = true
+			return nil
+		end
+		if current.deleted then
+			lostLease = lease.enabled
+			missing = not lease.enabled
 			return nil
 		end
 		if lease.enabled and (not current.lease or current.lease.owner ~= owner) then
@@ -730,6 +740,9 @@ function Store:LoadAsync(
 		return Result.err("InvalidConfig", "load timeout cannot be negative", false)
 	end
 	local existing = self._records[normalized.value]
+	if self._deleting[normalized.value] then
+		return Result.err("Conflict", "record deletion is in progress", false)
+	end
 	if existing then
 		if existing.State == "Active" and existing:IsReadOnly() == (mode == "ReadOnly") then
 			return Result.ok(existing)
@@ -777,58 +790,62 @@ function Store:_forgetRecord(key: string)
 end
 
 function Store:DeleteAsync(key: string | number, timeout: number?): Result<nil>
-	if self._closed then
+	if self._closed or self._closing then
 		return Result.err("Closed", "store is closed", false)
 	end
 	local normalized = self:_normalizeKey(key)
 	if not normalized.ok then
 		return normalized :: any
 	end
-	if self._records[normalized.value] then
+	if self._records[normalized.value] or self._deleting[normalized.value] then
 		return Result.err("Conflict", "close the loaded record before deleting it", false)
 	end
 	local clock = self._config.monotonicClock :: () -> number
 	local deadline = if timeout ~= nil then clock() + math.max(0, timeout) else nil
-	local budget = self:_waitForBudget("Remove", deadline)
-	if not budget.ok then
-		return budget
-	end
-	local adapter = self._config.adapter :: Types.Adapter
-	local result = Retry.run(
-		function()
-			return adapter:Remove(normalized.value)
-		end,
-		self._config.retry :: Types.RetryConfig,
-		self._config.wait :: (number) -> (),
-		self._config.random :: Random,
-		{
-			clock = clock,
-			deadline = deadline,
-			onRetry = function(errorValue, attempt, delay)
-				self:_metric("persistence_retry", 1, {
-					category = errorValue.category or "Unknown",
-					operation = "Remove",
-				})
-				self:_log("warn", "persistence_retry", "retrying persistence removal", {
-					attempt = attempt,
-					delay = delay,
-					errorCode = errorValue.code,
-					category = errorValue.category or "Unknown",
-				})
-			end,
+	self._deleting[normalized.value] = true
+	local rejection: Types.Failure? = nil
+	local result = self:_update(normalized.value, function(current)
+		rejection = nil
+		local now = (self._config.clock :: () -> number)()
+		if current and current.lease then
+			if not isStoredLease(current.lease) then
+				rejection = Result.err("InvalidData", "stored lease is malformed", false)
+				return nil
+			end
+			if
+				current.lease.expiresAt + (self._config.lease :: Types.LeaseConfig).stealAfter
+				> now
+			then
+				rejection = Result.err("Locked", "cannot delete a record with a live lease", true)
+				return nil
+			end
+		end
+		if current and current.deleted then
+			return current
+		end
+		return {
+			deleted = true,
+			data = {},
+			metadata = {},
+			schemaVersion = self._config.schemaVersion :: number,
+			revision = if current and type(current.revision) == "number"
+				then current.revision + 1
+				else 0,
+			updatedAt = now,
+			lease = nil,
 		}
-	)
-	if not result.ok then
-		self:_metric("persistence_failure", 1, {
-			category = result.error.category or "Unknown",
-			operation = "Remove",
-		})
-		self:_log("error", "persistence_failure", "persistence removal failed", {
-			errorCode = result.error.code,
-			category = result.error.category or "Unknown",
-		})
+	end, deadline)
+	self._deleting[normalized.value] = nil
+	if rejection then
+		return rejection
 	end
-	return result
+	if not result.ok then
+		return result :: any
+	end
+	if not result.value or not result.value.deleted then
+		return Result.err("PersistenceFailed", "delete produced no tombstone", true)
+	end
+	return Result.ok(nil)
 end
 
 function Store:CloseRecordAsync(key: string | number, timeout: number?): Result<nil>
@@ -861,7 +878,7 @@ function Store:CloseAsync(timeout: number?): Result<nil>
 	end
 	self:_beginClose()
 	self._closeRunning = true
-	while self._loading > 0 do
+	while self._loading > 0 or next(self._deleting) ~= nil do
 		if clock() >= deadline then
 			local failure = Result.err("Timeout", "timed out waiting for record loads", true)
 			self._closing = false

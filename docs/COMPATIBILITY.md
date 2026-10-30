@@ -1,5 +1,10 @@
 # Compatibility and upgrades
 
+`DeleteAsync` now writes an empty envelope with `deleted = true` instead of unconditionally removing
+the key. Upgrade all readers/writers before using deletion: old versions do not recognize tombstones.
+Do not run uncoordinated `RemoveAsync` cleanup against live keys; it can erase a recreated record.
+Historical DataStore versions require a separate administrative retention/erasure procedure.
+
 Codec registries reserve `omnistore.PlainTable/v1` to escape ordinary tables that resemble codec
 markers. Deploy readers supporting this escape before writing marker-shaped tables; older readers
 cannot decode the new escape. Existing unescaped marker-shaped values are inherently ambiguous and

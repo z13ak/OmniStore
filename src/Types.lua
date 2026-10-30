@@ -55,6 +55,7 @@ export type SessionIdentity = {
 }
 
 export type StoredEnvelope = {
+	deleted: boolean?,
 	data: unknown,
 	metadata: { [string]: unknown },
 	typeId: string?,
