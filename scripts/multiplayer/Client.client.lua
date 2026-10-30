@@ -86,15 +86,27 @@ command.OnClientEvent:Connect(function(phase, payload)
 			root.OmniStoreReplication
 				:WaitForChild("Changed")
 				:FireServer(channel, "Stats.Coins", 999999, 1000, "change")
-			local accepted, limited = 0, 0
+			local accepted, limited, completed = 0, 0, 0
+			local errors = {}
 			for _ = 1, 16 do
-				local result = snapshot:InvokeServer(channel)
-				if result.ok then
-					accepted += 1
-				elseif result.code == "RateLimited" then
-					limited += 1
-				end
+				task.spawn(function()
+					local ok, result = pcall(snapshot.InvokeServer, snapshot, channel)
+					if not ok then
+						table.insert(errors, tostring(result))
+					elseif result.ok then
+						accepted += 1
+					elseif result.code == "RateLimited" then
+						limited += 1
+					else
+						table.insert(errors, tostring(result.code))
+					end
+					completed += 1
+				end)
 			end
+			waitUntil(function()
+				return completed == 16
+			end, "snapshot burst did not complete")
+			assert(#errors == 0, "snapshot burst returned unexpected errors")
 			assert(accepted > 0 and limited > 0, "per-player snapshot limit not exercised")
 			return { accepted = accepted, limited = limited }
 		elseif phase == "burst" then
