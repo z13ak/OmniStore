@@ -29,6 +29,27 @@ return function()
 	end
 
 	describe("shutdown coordination", function()
+		it("rejects invalid inherited close concurrency before gating overridden stores", function()
+			for _, limit in { 0, 1.5 } do
+				local database = OmniStore.new({
+					autoBindToClose = false,
+					defaultStoreConfig = { maxConcurrentBackgroundTasks = limit },
+				})
+				local store = database:GetStore("Override", {
+					adapter = OmniStore.Adapters.Memory.new(),
+					template = { Value = 0 },
+					maxConcurrentBackgroundTasks = 2,
+					autosaveInterval = 0,
+					lease = { enabled = false },
+				})
+				local record = store:LoadAsync("record").value
+				expect(database:CloseAsync().error.code).to.equal("InvalidConfig")
+				expect(record.State).to.equal("Active")
+				expect(record:Set("Value", 1).ok).to.equal(true)
+				expect(store:CloseAsync().ok).to.equal(true)
+			end
+		end)
+
 		it("gates every store before manager close begins persistence", function()
 			local database = OmniStore.new({ autoBindToClose = false })
 			local adapter = OmniStore.Adapters.Memory.new()

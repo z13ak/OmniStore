@@ -103,6 +103,15 @@ function OmniStore:CloseAsync(timeout: number?): Types.Result<nil>
 	if self._closed then
 		return Result.ok(nil)
 	end
+	local defaults = self._config.defaultStoreConfig
+	local limit = if defaults then defaults.maxConcurrentBackgroundTasks or 4 else 4
+	if type(limit) ~= "number" or limit < 1 or limit % 1 ~= 0 then
+		return Result.err(
+			"InvalidConfig",
+			"manager close concurrency must be a positive integer",
+			false
+		)
+	end
 	local deadline = os.clock() + math.max(0, timeout or self._config.closeTimeout or 25)
 	if self._closing then
 		while self._closing do
@@ -119,8 +128,6 @@ function OmniStore:CloseAsync(timeout: number?): Types.Result<nil>
 		store:_beginClose()
 		table.insert(stores, store)
 	end
-	local defaults = self._config.defaultStoreConfig
-	local limit = if defaults then defaults.maxConcurrentBackgroundTasks or 4 else 4
 	local result = CloseBatch.run(stores, function(store, remaining)
 		return store:CloseAsync(remaining)
 	end, limit, deadline, os.clock, task.wait)
