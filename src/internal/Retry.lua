@@ -20,6 +20,16 @@ function Retry.run<T>(
 ): Types.Result<T>
 	local settings = options or {}
 	local clock = settings.clock or os.clock
+	if settings.deadline and clock() >= settings.deadline then
+		return Result.err(
+			"Timeout",
+			"retry deadline expired",
+			true,
+			nil,
+			{ attempts = 0 },
+			"Transient"
+		)
+	end
 	local lastResult = callback()
 	local attempt = 1
 	while not lastResult.ok and lastResult.error.retryable and attempt < config.maxAttempts do
@@ -43,6 +53,16 @@ function Retry.run<T>(
 			settings.onRetry(lastResult.error, attempt, delay)
 		end
 		waitFunction(delay)
+		if settings.deadline and clock() >= settings.deadline then
+			return Result.err(
+				"Timeout",
+				"retry deadline expired",
+				true,
+				lastResult.error,
+				{ attempts = attempt },
+				"Transient"
+			)
+		end
 		attempt += 1
 		lastResult = callback()
 	end
