@@ -33,3 +33,8 @@ are written; a mixed-version rollback remains unsafe. See `COMPATIBILITY.md`.
 
 The pull request should remain a draft until those release gates and human review are complete.
 Opening it does not authorize a merge, tag, package publication, or production deployment.
+
+Follow-up: the separate AI review and its corrected nested-codec finding are recorded in
+`INDEPENDENT_REVIEW.md`. The expanded 103-test suite and final-source integration recheck are
+recorded in `PR1_INTEGRATION_RECHECK.md`; the historical "not rerun" limitation above no longer
+describes the latest source.

@@ -6,6 +6,9 @@ All notable changes follow Keep a Changelog. This project uses semantic versioni
 
 ### Fixed
 
+- Preserve nested unknown codec wire values when they are copied to another record path.
+- Make Studio snapshot-throttling tests send a concurrent burst instead of relying on round-trip speed.
+
 - Reject invalid manager-close limits before gating stores, reject malformed read-only envelopes
   without leaking lifecycle state, and retain unknown codec wire meaning across copy/save cycles.
 
