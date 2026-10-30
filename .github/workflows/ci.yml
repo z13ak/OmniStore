@@ -34,10 +34,10 @@ jobs:
           git diff --exit-code -- wally.lock
 
       - name: Check formatting
-        run: stylua --check src tests examples scripts/DataStoreSmoke.lua
+        run: stylua --check src tests examples scripts
 
       - name: Lint
-        run: selene src tests examples scripts/DataStoreSmoke.lua
+        run: selene src tests examples scripts
 
       - name: Build Rojo artifacts
         run: |
@@ -45,6 +45,7 @@ jobs:
           rojo build default.project.json --output build/OmniStore.rbxm
           rojo build dev.project.json --output build/OmniStoreDevelopment.rbxlx
           rojo build test.project.json --output build/OmniStoreTests.rbxlx
+          rojo build multiplayer.project.json --output build/OmniStoreMultiplayerTests.rbxlx
 
       - name: Validate Wally package contents
         shell: bash
@@ -67,6 +68,7 @@ jobs:
             build/OmniStore.rbxm
             build/OmniStoreDevelopment.rbxlx
             build/OmniStoreTests.rbxlx
+            build/OmniStoreMultiplayerTests.rbxlx
             build/OmniStore-package.zip
             build/SHA256SUMS.txt
           if-no-files-found: error

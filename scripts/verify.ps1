@@ -15,10 +15,10 @@ try {
         if ($LASTEXITCODE -ne 0) { throw "wally install failed" }
     }
 
-    stylua --check src tests examples scripts/DataStoreSmoke.lua
+    stylua --check src tests examples scripts
     if ($LASTEXITCODE -ne 0) { throw "StyLua check failed" }
 
-    selene src tests examples scripts/DataStoreSmoke.lua
+    selene src tests examples scripts
     if ($LASTEXITCODE -ne 0) { throw "Selene check failed" }
 
     New-Item -ItemType Directory -Path build -Force | Out-Null
@@ -28,6 +28,8 @@ try {
     if ($LASTEXITCODE -ne 0) { throw "development Rojo build failed" }
     rojo build test.project.json --output build/OmniStoreTests.rbxlx
     if ($LASTEXITCODE -ne 0) { throw "test Rojo build failed" }
+    rojo build multiplayer.project.json --output build/OmniStoreMultiplayerTests.rbxlx
+    if ($LASTEXITCODE -ne 0) { throw "multiplayer Rojo build failed" }
 
     if (-not $SkipPackage) {
         $manifest = wally manifest-to-json | ConvertFrom-Json
