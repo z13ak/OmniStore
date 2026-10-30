@@ -78,6 +78,7 @@ export type Record = typeof(setmetatable(
 		_stopBackground: boolean,
 		_backgroundJobs: { { Cancel: (self: any) -> () } },
 		_inTransaction: boolean,
+		_inUpdate: boolean,
 		_readOnly: boolean,
 	},
 	Record
@@ -110,6 +111,7 @@ function Record.new(store: StoreLike, key: string, owner: string, readOnly: bool
 		_stopBackground = false,
 		_backgroundJobs = {},
 		_inTransaction = false,
+		_inUpdate = false,
 		_readOnly = readOnly == true,
 	}, Record)
 end
@@ -122,8 +124,8 @@ function Record:_requireWritable(): Types.Failure?
 	if self._readOnly then
 		return Result.err("ReadOnly", "record was loaded in read-only mode", false)
 	end
-	if self._inTransaction then
-		return Result.err("Conflict", "record writes are locked during a transaction", false)
+	if self._inTransaction or self._inUpdate then
+		return Result.err("Conflict", "record writes are locked during a mutation callback", false)
 	end
 	return nil
 end
@@ -362,9 +364,16 @@ function Record:Update(path: PathValue, updater: (unknown) -> unknown): Result<u
 	if not current.ok then
 		return current
 	end
-	local ok, nextValue = pcall(updater, current.value)
+	self._inUpdate = true
+	local ok, yielded, nextValue = NoYield.run(updater, current.value)
+	self._inUpdate = false
 	if not ok then
-		return Result.err("InvalidData", "Update callback failed", false, nextValue)
+		return Result.err(
+			"InvalidData",
+			if yielded then "Update callback yielded" else "Update callback failed",
+			false,
+			nextValue
+		)
 	end
 	return self:Set(path, nextValue)
 end
@@ -580,8 +589,8 @@ function Record:SaveAsync(timeout: number?): Result<nil>
 end
 
 function Record:CloseAsync(timeout: number?): Result<nil>
-	if self._inTransaction then
-		return Result.err("Conflict", "record cannot close during a transaction", false)
+	if self._inTransaction or self._inUpdate then
+		return Result.err("Conflict", "record cannot close during a mutation callback", false)
 	end
 	if self.State == "Closed" then
 		return Result.ok(nil)
