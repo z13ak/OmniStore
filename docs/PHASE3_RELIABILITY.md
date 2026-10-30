@@ -1,7 +1,7 @@
 # Phase 3 Studio qualification — 2026-10-30
 
-Branch: `development` (renamed from `fix/phase-2-reliability` at the user's request).
-The user selected one Studio server with two clients for this phase in the confirmed dedicated
+Branch: `development` (formerly `fix/phase-2-reliability`).
+This phase used one Studio server with two clients in the confirmed dedicated
 test universe `10767918920`, place `73812564531596`.
 
 Completed changes:
@@ -68,19 +68,18 @@ persistence/codec algorithms rather than claiming a complete legacy runtime test
 
 ## Limits and remaining release gates
 
-The user's requested topology is one server with two clients. It does not test competing leases,
+The tested topology is one server with two clients. It does not test competing leases,
 network partitions, or takeover between two independent Roblox servers. The timed close invokes
 the manager close path; it does not simulate abrupt process death or prove completion during a
 real server shutdown under platform pressure.
 
 StudioTestService's automated launch returned no result in this environment, and adding players
 through that service was unavailable in the existing manual session. The tests therefore ran
-directly in the user's Server & Clients session. Client departure used a server kick after the
+directly in an existing Server & Clients session. Client departure used a server kick after the
 client reported `CanLeaveTest = false`. An additional local Studio client was launched between the
 successful runs and participated in the live run. Automatic replacement-join **within** either run
 was skipped and is explicitly recorded as not run in both reports.
 
-The Windows computer-use helper timed out; native Studio MCP calls remained accessible. These
-infrastructure limitations do not turn the skipped scenarios into passing tests. CI builds the
+Unavailable automation left the skipped scenarios unverified. CI builds the
 multiplayer artifact but does not launch Studio itself. No release, tag, push, or production rollout
 was performed.

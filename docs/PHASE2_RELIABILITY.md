@@ -34,7 +34,7 @@ Verification completed:
   in Studio; its existing sources were exported into ignored `DevPackages` for the test build.
   Dependency installation was not rerun.
 
-The user confirmed that **OmniStoreTests**, universe `10767918920`, place `73812564531596`, is a
+**OmniStoreTests**, universe `10767918920`, place `73812564531596`, was confirmed as a
 dedicated test universe without production data. The Roblox Studio MCP server responded to live
 instance/state calls; accessibility was not inferred from the supplied configuration alone.
 

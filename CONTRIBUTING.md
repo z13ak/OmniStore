@@ -25,6 +25,12 @@ Changes to persistence, leases, migrations, codecs, transactions, replication, o
 need focused regression tests and corresponding documentation. Do not weaken a failing safety test to
 make an implementation pass.
 
+## Documentation style
+
+Use neutral, technical wording focused on behavior, review findings, verification results, and
+known limitations. Keep conversational history and personal narration out of project documentation.
+Distinguish code review from formal pull-request approval, and retain the exact scope of each test.
+
 ## Pull requests
 
 - Keep changes scoped and explain their failure/data-compatibility impact.

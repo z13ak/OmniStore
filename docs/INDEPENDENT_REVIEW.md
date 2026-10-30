@@ -1,10 +1,10 @@
-# Independent AI review of PR #1 — 2026-10-30
+# Code review of PR #1 — 2026-10-30
 
-A separate AI reviewer inspected the production diff and relevant tests against `main` (`d83a1d4`),
-starting at PR head `634371a`. The reviewer worked read-only, without editing code, submitting a
-GitHub review, or running Studio tests. This is an independent AI review, not a human approval.
+The production diff and relevant tests were reviewed against `main` (`d83a1d4`), starting at PR
+head `634371a`. The review was read-only. Runtime verification was performed separately, and no
+formal GitHub approval was submitted as part of this review.
 
-The reviewer reported one actionable **P2** issue in unknown-codec preservation:
+The review identified one actionable **P2** issue in unknown-codec preservation:
 
 1. Load an unknown outer codec with `unknownTypePolicy = "Preserve"`, whose opaque payload contains
    a nested codec envelope.
@@ -20,10 +20,9 @@ Commit `7b11766` fixes it by marking the complete opaque wire subtree before def
 The traversal uses a local seen set to handle cycles/shared references. The encoder continues to
 reject cyclic values. A new regression covers Get, Set, save, and decoding with the newer registry.
 
-The separate reviewer examined the fix and confirmed that it resolves the P2, with no concrete
-new issue identified. The reviewer found no other confidently introduced P1/P2 issue in the
-production changes inspected. Runtime validation remained the primary agent's responsibility;
-the expanded Studio suite passed **103 tests**, with zero assertion or planning/runtime errors.
+Follow-up review confirmed that the fix resolves the P2, with no additional concrete issue
+identified. No other introduced P1/P2 issue was identified in the production changes inspected.
+The expanded Studio suite passed **103 tests**, with zero assertion or planning/runtime errors.
 
 Integration rechecking also exposed a harness flaw: sequential snapshot requests could stay below
 the server's configured rate on a slow client, so expecting throttling was timing-dependent.

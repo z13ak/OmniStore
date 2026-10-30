@@ -1,7 +1,7 @@
 # PR #1 final-source integration recheck — 2026-10-30
 
 Source and harness commit: `d414ead66f7307f9a4630ff7b6ad5c50b1044cba` on `development`.
-The subsequent evidence commit changes only documentation/reports. The separate AI review is
+The subsequent evidence commit changes only documentation/reports. The code review is
 recorded in `INDEPENDENT_REVIEW.md`; its one P2 finding was fixed and reviewed again.
 
 The final source passed **103 unit tests**, zero assertion failures, and zero planning/runtime
