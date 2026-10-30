@@ -6,10 +6,10 @@ if not RunService:IsStudio() then
 	return
 end
 local StudioTestService = game:GetService("StudioTestService")
-local args = StudioTestService:GetTestArgs()
-if args == nil and type(script:GetAttribute("TestArgs")) == "string" then
-	args = game:GetService("HttpService"):JSONDecode(script:GetAttribute("TestArgs"))
-end
+local encodedArgs = script:GetAttribute("TestArgs")
+local args = if type(encodedArgs) == "string"
+	then game:GetService("HttpService"):JSONDecode(encodedArgs)
+	else StudioTestService:GetTestArgs()
 if type(args) ~= "table" or args.kind ~= "OmniStoreTwoClient" then
 	return
 end
