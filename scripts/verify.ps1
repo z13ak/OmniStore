@@ -15,10 +15,10 @@ try {
         if ($LASTEXITCODE -ne 0) { throw "wally install failed" }
     }
 
-    stylua --check src tests examples
+    stylua --check src tests examples scripts/DataStoreSmoke.lua
     if ($LASTEXITCODE -ne 0) { throw "StyLua check failed" }
 
-    selene src tests examples
+    selene src tests examples scripts/DataStoreSmoke.lua
     if ($LASTEXITCODE -ne 0) { throw "Selene check failed" }
 
     New-Item -ItemType Directory -Path build -Force | Out-Null

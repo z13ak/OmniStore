@@ -46,8 +46,8 @@ jobs:
       - name: Install and verify
         run: |
           wally install
-          stylua --check src tests examples
-          selene src tests examples
+          stylua --check src tests examples scripts/DataStoreSmoke.lua
+          selene src tests examples scripts/DataStoreSmoke.lua
           archive="$RUNNER_TEMP/OmniStore-${RELEASE_TAG#v}.zip"
           wally package --output "$archive"
           python3 scripts/verify_package.py "$archive"

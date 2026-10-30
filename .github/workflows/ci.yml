@@ -34,10 +34,10 @@ jobs:
           git diff --exit-code -- wally.lock
 
       - name: Check formatting
-        run: stylua --check src tests examples
+        run: stylua --check src tests examples scripts/DataStoreSmoke.lua
 
       - name: Lint
-        run: selene src tests examples
+        run: selene src tests examples scripts/DataStoreSmoke.lua
 
       - name: Build Rojo artifacts
         run: |

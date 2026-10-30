@@ -40,6 +40,15 @@ persistence, leases, migrations, serialization, codecs, or shutdown:
 - verify at least one model migration and supported Roblox datatype codec round trip;
 - never use a production universe or production keys.
 
+`scripts/DataStoreSmoke.lua` supplies a manual runner for this gate. Load it as a ModuleScript in
+Studio, start a server session in a confirmed dedicated test universe, and call
+`runner.run(OmniStore, expectedUniverseId)`. It refuses other universe IDs and non-Studio contexts.
+It generates a fresh `OmniSmoke_...` namespace and uses six exact disposable keys. The returned
+summary covers save/reload, foreign locks, lease-aware deletion, codec/model migration, expired
+lease recovery, and manager shutdown persistence. Expiry is injected only into its own test key.
+Successful cleanup leaves empty tombstones; failed runs can leave their disposable payloads for
+investigation. The runner is never executed automatically by TestEZ or the library.
+
 Do not automate destructive cleanup against a broad namespace. Test records can expire naturally or
 be deleted only by exact known keys.
 
