@@ -61,6 +61,9 @@ Closes all loaded records and then marks the store closed.
 
 ## Record
 
+Metadata must contain directly serializable values, even when data codecs are configured.
+Codec-only metadata values are rejected by both record and transaction mutations before commit.
+
 - `GetData() -> Result<unknown>` returns a defensive copy of the entire data value.
 - `Get(path) -> Result<unknown>` accepts `"Inventory.1.Id"` or `{ "Inventory", 1, "Id" }`.
 - `Set(path, value) -> Result<unknown>` creates missing table parents.

@@ -165,6 +165,13 @@ function Record:_validateSerialization(value: unknown): Types.Result<nil>
 	})
 end
 
+function Record:_validateMetadata(value: unknown): Types.Result<nil>
+	return Serializer.validate(value, {
+		maxDepth = self._store._config.maxSerializationDepth,
+		maxPayloadBytes = self._store._config.maxPayloadBytes,
+	})
+end
+
 function Record:LoadAsync(
 	timeout: number?,
 	staleLeasePolicy: Types.StaleLeasePolicy?
@@ -446,7 +453,7 @@ function Record:SetMetadata(key: string, value: unknown): Result<nil>
 	end
 	local candidate = DeepCopy(self._metadata) :: { [string]: unknown }
 	candidate[key] = DeepCopy(value)
-	local valid = self:_validateSerialization(candidate)
+	local valid = self:_validateMetadata(candidate)
 	if not valid.ok then
 		return valid
 	end
@@ -476,6 +483,9 @@ function Record:Transaction(callback: (TransactionDraft.TransactionDraft) -> ())
 	local draft = TransactionDraft.new(self._data, self._metadata, function(value)
 		local serialized = self:_validateSerialization(value)
 		return if serialized.ok then nil else serialized
+	end, function(value)
+		local serialized = self:_validateMetadata(value)
+		return if serialized.ok then nil else serialized
 	end)
 	self._inTransaction = true
 	local ok, yielded, cause = NoYield.run(callback, draft)
@@ -500,7 +510,7 @@ function Record:Transaction(callback: (TransactionDraft.TransactionDraft) -> ())
 	if validationError then
 		return validationError
 	end
-	local metadataValidation = self:_validateSerialization(metadata)
+	local metadataValidation = self:_validateMetadata(metadata)
 	if not metadataValidation.ok then
 		return metadataValidation
 	end

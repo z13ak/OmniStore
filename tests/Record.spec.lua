@@ -29,6 +29,25 @@ return function()
 	end
 
 	describe("Record", function()
+		it("rejects codec-only metadata before it can block persistence", function()
+			local codecs = OmniStore.CodecRegistry.new()
+			OmniStore.Codecs.Roblox.registerAll(codecs)
+			local store, adapter = makeStore({ config = { codecs = codecs } })
+			local record = store:LoadAsync("metadata-wire").value
+			expect(record:SetMetadata("position", Vector3.one).error.code).to.equal("InvalidData")
+			expect(record:GetMetadata("position").value).to.equal(nil)
+			expect(record:IsDirty()).to.equal(false)
+			local transaction = record:Transaction(function(draft)
+				draft:Set("Coins", 10)
+				expect(draft:SetMetadata("position", Vector3.one).ok).to.equal(false)
+			end)
+			expect(transaction.ok).to.equal(false)
+			expect(record:Get("Coins").value).to.equal(0)
+			expect(record:SetMetadata("reason", { text = "safe" }).ok).to.equal(true)
+			expect(record:CloseAsync().ok).to.equal(true)
+			expect(adapter:Peek("metadata-wire").metadata.reason.text).to.equal("safe")
+		end)
+
 		it("rejects yielding updates without publishing their value", function()
 			local store = makeStore(nil)
 			local record = store:LoadAsync("update-yield").value
