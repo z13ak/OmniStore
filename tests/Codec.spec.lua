@@ -86,6 +86,48 @@ return function()
 			expect(registry:Encode(preserved).error.code).to.equal("InvalidData")
 		end)
 
+		it("preserves nested wire meaning when a descendant is copied to another path", function()
+			local older = OmniStore.CodecRegistry.new({ unknownTypePolicy = "Preserve" })
+			local adapter = OmniStore.Adapters.Memory.new({
+				record = {
+					data = {
+						Item = {
+							__omniCodec = 1,
+							typeId = "game.Parent/v9",
+							value = {
+								Child = {
+									__omniCodec = 1,
+									typeId = "game.Future/v1",
+									value = { Name = "nested" },
+								},
+							},
+						},
+					},
+					metadata = {},
+					schemaVersion = 1,
+					revision = 0,
+					updatedAt = 1,
+				},
+			})
+			local store = OmniStore.new({ autoBindToClose = false }):GetStore("NestedPreserve", {
+				adapter = adapter,
+				codecs = older,
+				autosaveInterval = 0,
+				lease = { enabled = false },
+			})
+			local record = store:LoadAsync("record").value
+			local child = record:Get("Item.value.Child").value
+			expect(record:Set("Other", child).ok).to.equal(true)
+			expect(record:CloseAsync().ok).to.equal(true)
+			local wire = adapter:Peek("record").data.Other
+			expect(wire.typeId).to.equal("game.Future/v1")
+			local decoded = futureRegistry():Decode(wire)
+			expect(decoded.ok).to.equal(true)
+			expect(decoded.value.Future).to.equal(true)
+			expect(decoded.value.Name).to.equal("nested")
+			store:CloseAsync()
+		end)
+
 		it("round-trips ordinary tables that resemble registered codecs", function()
 			local registry = OmniStore.CodecRegistry.new()
 			OmniStore.Codecs.Roblox.registerAll(registry)

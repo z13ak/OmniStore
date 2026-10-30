@@ -163,7 +163,7 @@ function CodecRegistry:Decode(value: unknown): Types.Result<unknown>
 			if not codec then
 				visiting[current] = nil
 				if self._unknownTypePolicy == "Preserve" then
-					return Result.ok(CodecWire.mark(DeepCopy(current) :: table))
+					return Result.ok(CodecWire.markTree(DeepCopy(current) :: table))
 				end
 				return Result.err(
 					"InvalidData",

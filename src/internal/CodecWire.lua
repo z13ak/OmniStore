@@ -9,6 +9,24 @@ function CodecWire.mark(value: table): table
 	return value
 end
 
+function CodecWire.markTree(value: table): table
+	local seen: { [table]: boolean } = {}
+	local function visit(current: table)
+		if seen[current] then
+			return
+		end
+		seen[current] = true
+		CodecWire.mark(current)
+		for _, child in current do
+			if type(child) == "table" then
+				visit(child)
+			end
+		end
+	end
+	visit(value)
+	return value
+end
+
 function CodecWire.isPreserved(value: table): boolean
 	return preserved[value] == true
 end
