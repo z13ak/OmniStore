@@ -15,6 +15,11 @@ All notable changes follow Keep a Changelog. This project uses semantic versioni
 
 ### Added
 
+- Opt-in Studio server/two-client integration harness covering replication, client isolation,
+  rate limits, join/leave persistence, and bounded shutdown with memory and live DataStore adapters.
+- Pinned rc.3 persistence compatibility fixtures and a test gate that detects planning errors and
+  empty runs as well as failed assertions.
+
 - Deterministic regression coverage for concurrency, response loss, migration replay, and shutdown.
 - Manual dedicated-universe DataStore smoke runner, excluded from automatic tests and package code.
 
