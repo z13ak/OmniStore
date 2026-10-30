@@ -552,7 +552,9 @@ function Record:_saveOnce(release: boolean, deadline: number?): Result<nil>
 	)
 	if not saved.ok then
 		if saved.error.code == "LeaseLost" then
-			self:_setState("LeaseLost")
+			if self.State ~= "Closed" then
+				self:_setState("LeaseLost")
+			end
 			self._store:_metric("lease_lost", 1)
 			self._store:_log("error", "lease_lost", "record lease was lost during save")
 		end
@@ -605,6 +607,13 @@ function Record:SaveAsync(timeout: number?): Result<nil>
 	return result
 end
 
+function Record:_finishClose()
+	self:_setState("Closed")
+	self._store:_forgetRecord(self.Key)
+	self.Changed:Destroy()
+	self.LifecycleChanged:Destroy()
+end
+
 function Record:_closeOnce(timeout: number?): Result<nil>
 	if self._inTransaction or self._inUpdate then
 		return Result.err("Conflict", "record cannot close during a mutation callback", false)
@@ -616,14 +625,14 @@ function Record:_closeOnce(timeout: number?): Result<nil>
 		return Result.err("NotLoaded", "only an active record can be closed", false)
 	end
 
+	local leaseWasLost = self.State == "LeaseLost"
 	self:_setState("Closing")
 	self:_stopBackgroundTasks()
-	if self._readOnly then
-		self:_setState("Closed")
-		self._store:_forgetRecord(self.Key)
-		self.Changed:Destroy()
-		self.LifecycleChanged:Destroy()
-		return Result.ok(nil)
+	if self._readOnly or leaseWasLost then
+		self:_finishClose()
+		return if leaseWasLost
+			then Result.err("LeaseLost", "closed local record after losing its lease", false)
+			else Result.ok(nil)
 	end
 	local clock = self._store._config.monotonicClock :: () -> number
 	local deadline = clock() + math.max(0, timeout or (self._store._config.closeTimeout :: number))
@@ -643,6 +652,10 @@ function Record:_closeOnce(timeout: number?): Result<nil>
 		end
 		(self._store._config.wait :: (number) -> ())(0.03)
 	end
+	if self.State == "LeaseLost" then
+		self:_finishClose()
+		return Result.err("LeaseLost", "closed local record after losing its lease", false)
+	end
 	local result = self:_saveOnce(true, deadline)
 	if not result.ok and result.error.code ~= "LeaseLost" then
 		if result.error.code == "Timeout" then
@@ -654,10 +667,7 @@ function Record:_closeOnce(timeout: number?): Result<nil>
 		return result
 	end
 
-	self:_setState("Closed")
-	self._store:_forgetRecord(self.Key)
-	self.Changed:Destroy()
-	self.LifecycleChanged:Destroy()
+	self:_finishClose()
 	return result
 end
 
