@@ -117,8 +117,8 @@ OmniStore = "z13ak/omnistore@0.2.0-rc.4"
 Then run `wally install`. Prebuilt files are also available from the
 [GitHub releases](https://github.com/z13ak/OmniStore/releases).
 
-GitHub assets and Wally registry publication are separate. If rc.4 is not yet available in the
-registry, use the matching GitHub release model; rc.3 does not contain these reliability fixes.
+Version `0.2.0-rc.4` is available from both Wally and GitHub releases. Version rc.3 does not contain
+these reliability fixes.
 
 ## Development
 

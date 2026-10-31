@@ -47,3 +47,5 @@ All 52 library/test sources matched the dedicated Studio test place after newlin
 The candidate was committed as `a792e74` and tagged `v0.2.0-rc.4`. Main-branch CI and the tag's release workflow both completed successfully. The GitHub release is marked as a prerelease. All five uploaded package/model/place assets were downloaded and matched the release SHA-256 manifest; the manifest also matched GitHub's asset digest. The downloaded Wally ZIP passed package inspection with 40 entries.
 
 Wally registry publication was attempted after artifact verification but returned `Authentication is required to publish, use wally login`. The registry publication is incomplete; the GitHub prerelease and its assets are available. No game deployment was performed.
+
+Follow-up: after the maintainer signed in, Wally publication returned `Package published successfully!`. An isolated consumer project declaring `z13ak/omnistore@0.2.0-rc.4` installed successfully from the registry and resolved rc.4 in its lockfile. Registry publication is now complete; the earlier authentication failure describes only the first attempt.
