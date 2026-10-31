@@ -35,8 +35,8 @@ Verification completed:
   Dependency installation was not rerun.
 
 **OmniStoreTests**, universe `10767918920`, place `73812564531596`, was confirmed as a
-dedicated test universe without production data. The Roblox Studio MCP server responded to live
-instance/state calls; accessibility was not inferred from the supplied configuration alone.
+dedicated test universe without production data. Execution provenance and connection checks are
+recorded separately in [the test execution record](AI_TESTS.md).
 
 The final live DataStore run passed all eight scenario groups with no manager-close errors:
 

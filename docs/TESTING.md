@@ -1,5 +1,9 @@
 # Testing
 
+Result records are kept separately: [manual reliability tests](MANUAL_TESTS.md) and
+[AI-assisted test execution](AI_TESTS.md). The procedures below describe how to reproduce checks;
+they do not establish who ran them or whether a particular release passed.
+
 ## Local static and build gate
 
 On Windows, run:
