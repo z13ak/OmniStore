@@ -43,3 +43,7 @@ Simulated adapter errors test failure handling, not Roblox service outage behavi
 The candidate updates the version, lockfile, changelog, and documentation on top of merged commit `511f88a`; library, unit-test, and integration-harness source is unchanged. Wally dependency installation completed, followed by `scripts/verify.ps1 -SkipInstall`. Formatting, linting, all four Rojo builds, package inspection (40 entries), and whitespace checks passed.
 
 All 52 library/test sources matched the dedicated Studio test place after newline normalization. A fresh Play run reported `Passed = 103`, `GatePassed = true`, and `Complete = true`. Play was then stopped. No new multiplayer or hosted-server run is claimed for this candidate; the existing evidence retains its original scope.
+
+The candidate was committed as `a792e74` and tagged `v0.2.0-rc.4`. Main-branch CI and the tag's release workflow both completed successfully. The GitHub release is marked as a prerelease. All five uploaded package/model/place assets were downloaded and matched the release SHA-256 manifest; the manifest also matched GitHub's asset digest. The downloaded Wally ZIP passed package inspection with 40 entries.
+
+Wally registry publication was attempted after artifact verification but returned `Authentication is required to publish, use wally login`. The registry publication is incomplete; the GitHub prerelease and its assets are available. No game deployment was performed.
