@@ -29,6 +29,59 @@ return function()
 	end
 
 	describe("Record", function()
+		it("rejects codec-only metadata before it can block persistence", function()
+			local codecs = OmniStore.CodecRegistry.new()
+			OmniStore.Codecs.Roblox.registerAll(codecs)
+			local store, adapter = makeStore({ config = { codecs = codecs } })
+			local record = store:LoadAsync("metadata-wire").value
+			expect(record:SetMetadata("position", Vector3.one).error.code).to.equal("InvalidData")
+			expect(record:GetMetadata("position").value).to.equal(nil)
+			expect(record:IsDirty()).to.equal(false)
+			local transaction = record:Transaction(function(draft)
+				draft:Set("Coins", 10)
+				expect(draft:SetMetadata("position", Vector3.one).ok).to.equal(false)
+			end)
+			expect(transaction.ok).to.equal(false)
+			expect(record:Get("Coins").value).to.equal(0)
+			expect(record:SetMetadata("reason", { text = "safe" }).ok).to.equal(true)
+			expect(record:CloseAsync().ok).to.equal(true)
+			expect(adapter:Peek("metadata-wire").metadata.reason.text).to.equal("safe")
+		end)
+
+		it("rejects yielding updates without publishing their value", function()
+			local store = makeStore(nil)
+			local record = store:LoadAsync("update-yield").value
+			local result = record:Update("Coins", function(value)
+				coroutine.yield()
+				return value + 1
+			end)
+			expect(result.ok).to.equal(false)
+			expect(record:Get("Coins").value).to.equal(0)
+			expect(record:IsDirty()).to.equal(false)
+			expect(record:Increment("Coins", 1).ok).to.equal(true)
+		end)
+
+		it("blocks reentrant writes and close during an update", function()
+			local store = makeStore(nil)
+			local record = store:LoadAsync("update-reentry").value
+			local result = record:Update("Coins", function(value)
+				expect(record:Increment("Coins", 10).error.code).to.equal("Conflict")
+				expect(record:CloseAsync().error.code).to.equal("Conflict")
+				return value + 1
+			end)
+			expect(result.ok).to.equal(true)
+			expect(record:Get("Coins").value).to.equal(1)
+		end)
+
+		it("unlocks writes after an update callback errors", function()
+			local store = makeStore(nil)
+			local record = store:LoadAsync("update-error").value
+			expect(record:Update("Coins", function()
+				error("abort")
+			end).ok).to.equal(false)
+			expect(record:Increment("Coins", 1).value).to.equal(1)
+		end)
+
 		it("reconciles and applies path mutations", function()
 			local store = makeStore(nil)
 			local loaded = store:LoadAsync("alpha")

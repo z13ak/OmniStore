@@ -25,6 +25,7 @@ export type TransactionDraft = typeof(setmetatable(
 		_changes: { Change },
 		_mutationCount: number,
 		_validateValue: (unknown) -> Types.Failure?,
+		_validateMetadata: (unknown) -> Types.Failure?,
 		_failure: Types.Failure?,
 	},
 	TransactionDraft
@@ -41,7 +42,8 @@ end
 function TransactionDraft.new(
 	data: unknown,
 	metadata: { [string]: unknown },
-	validateValue: (unknown) -> Types.Failure?
+	validateValue: (unknown) -> Types.Failure?,
+	validateMetadata: (unknown) -> Types.Failure?
 ): TransactionDraft
 	return setmetatable({
 		_data = DeepCopy(data),
@@ -49,6 +51,7 @@ function TransactionDraft.new(
 		_changes = {},
 		_mutationCount = 0,
 		_validateValue = validateValue,
+		_validateMetadata = validateMetadata,
 		_failure = nil,
 	}, TransactionDraft)
 end
@@ -188,7 +191,7 @@ end
 function TransactionDraft:SetMetadata(key: string, value: unknown): Result<nil>
 	local candidate = DeepCopy(self._metadata) :: { [string]: unknown }
 	candidate[key] = DeepCopy(value)
-	local validationFailure = self._validateValue(candidate)
+	local validationFailure = self._validateMetadata(candidate)
 	if validationFailure then
 		return self:_fail(validationFailure)
 	end

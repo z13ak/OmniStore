@@ -48,7 +48,10 @@ Returns only this process's tracked record. It performs no persistence request.
 
 ### `store:DeleteAsync(key, timeout?) -> Result<nil>`
 
-Deletes an unloaded key. This is intentionally explicit and is not a soft delete.
+Atomically clears an unloaded key's payload using an empty tombstone. A live lease blocks deletion,
+including leases owned by other servers. Read-only loads return `NotFound` for tombstones; a later
+exclusive load can recreate the record from its template. Local loads and deletes cannot overlap.
+The tombstone remains stored: this is logical deletion, not physical key or historical-version erasure.
 
 ### `store:CloseRecordAsync(key, timeout?) -> Result<nil>`
 
@@ -60,6 +63,9 @@ is the lifecycle coordination point to call from `Players.PlayerRemoving` or equ
 Closes all loaded records and then marks the store closed.
 
 ## Record
+
+Metadata must contain directly serializable values, even when data codecs are configured.
+Codec-only metadata values are rejected by both record and transaction mutations before commit.
 
 - `GetData() -> Result<unknown>` returns a defensive copy of the entire data value.
 - `Get(path) -> Result<unknown>` accepts `"Inventory.1.Id"` or `{ "Inventory", 1, "Id" }`.

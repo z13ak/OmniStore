@@ -1,0 +1,124 @@
+{
+  "reports": {
+    "initial": {
+      "-3": {
+        "ok": true,
+        "details": {
+          "passed": true
+        }
+      },
+      "-2": {
+        "ok": true,
+        "details": {
+          "passed": true
+        }
+      }
+    },
+    "invalidate": {
+      "-3": {
+        "ok": true,
+        "details": {
+          "passed": true
+        }
+      },
+      "-2": {
+        "ok": true,
+        "details": {
+          "passed": true
+        }
+      }
+    },
+    "burst": {
+      "-3": {
+        "ok": true,
+        "details": {
+          "sequence": 200,
+          "sharedCoins": 200
+        }
+      },
+      "-2": {
+        "ok": true,
+        "details": {
+          "sequence": 200,
+          "sharedCoins": 200
+        }
+      }
+    },
+    "closeProfile": {
+      "-3": {
+        "ok": true,
+        "details": {
+          "passed": true
+        }
+      },
+      "-2": {
+        "ok": true,
+        "details": {
+          "passed": true
+        }
+      }
+    },
+    "boot": {
+      "-3": {
+        "ok": true,
+        "details": {
+          "userId": -3
+        }
+      }
+    },
+    "leave": {
+      "-2": {
+        "ok": true,
+        "details": {
+          "canLeave": false
+        }
+      }
+    },
+    "isolation": {
+      "-3": {
+        "ok": true,
+        "details": {
+          "limited": 4,
+          "accepted": 12
+        }
+      },
+      "-2": {
+        "ok": true,
+        "details": {
+          "limited": 9,
+          "accepted": 7
+        }
+      }
+    },
+    "finish": {
+      "-3": {
+        "ok": true,
+        "details": {
+          "passed": true
+        }
+      }
+    }
+  },
+  "closeSeconds": 1.6174664000282064,
+  "checks": [
+    "initial",
+    "isolation",
+    "server-authority",
+    "burst",
+    "invalidate",
+    "closeProfile",
+    "leave",
+    "leave-persistence",
+    "finish",
+    "bounded-shutdown-persistence"
+  ],
+  "unitPassed": 97,
+  "ok": true,
+  "peakConcurrentBulkWrites": 4,
+  "clientsStarted": 2,
+  "tombstones": 15,
+  "replacementJoin": "not run: existing manual Studio session",
+  "mode": "StudioLiveDataStore",
+  "namespace": "OmniMP_cb2d2d81e6ba49529f7d",
+  "recordCount": 12
+}

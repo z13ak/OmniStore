@@ -1,0 +1,123 @@
+{
+  "reports": {
+    "initial": {
+      "-1": {
+        "ok": true,
+        "details": {
+          "passed": true
+        }
+      },
+      "-2": {
+        "ok": true,
+        "details": {
+          "passed": true
+        }
+      }
+    },
+    "invalidate": {
+      "-1": {
+        "ok": true,
+        "details": {
+          "passed": true
+        }
+      },
+      "-2": {
+        "ok": true,
+        "details": {
+          "passed": true
+        }
+      }
+    },
+    "burst": {
+      "-1": {
+        "ok": true,
+        "details": {
+          "sequence": 200,
+          "sharedCoins": 200
+        }
+      },
+      "-2": {
+        "ok": true,
+        "details": {
+          "sequence": 200,
+          "sharedCoins": 200
+        }
+      }
+    },
+    "closeProfile": {
+      "-1": {
+        "ok": true,
+        "details": {
+          "passed": true
+        }
+      },
+      "-2": {
+        "ok": true,
+        "details": {
+          "passed": true
+        }
+      }
+    },
+    "boot": {
+      "-2": {
+        "ok": true,
+        "details": {
+          "userId": -2
+        }
+      }
+    },
+    "leave": {
+      "-1": {
+        "ok": true,
+        "details": {
+          "canLeave": false
+        }
+      }
+    },
+    "isolation": {
+      "-1": {
+        "ok": true,
+        "details": {
+          "limited": 11,
+          "accepted": 5
+        }
+      },
+      "-2": {
+        "ok": true,
+        "details": {
+          "limited": 11,
+          "accepted": 5
+        }
+      }
+    },
+    "finish": {
+      "-2": {
+        "ok": true,
+        "details": {
+          "passed": true
+        }
+      }
+    }
+  },
+  "closeSeconds": 0.8127279999898747,
+  "checks": [
+    "initial",
+    "isolation",
+    "server-authority",
+    "burst",
+    "invalidate",
+    "closeProfile",
+    "leave",
+    "leave-persistence",
+    "finish",
+    "bounded-shutdown-persistence"
+  ],
+  "unitPassed": 97,
+  "peakConcurrentBulkWrites": 4,
+  "ok": true,
+  "clientsStarted": 2,
+  "replacementJoin": "not run: existing manual Studio session",
+  "mode": "StudioMemory",
+  "namespace": "OmniMP_c7f5942e2eca4cebb07c",
+  "recordCount": 96
+}

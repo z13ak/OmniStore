@@ -2,6 +2,8 @@
 
 local Result = require(script.Parent.internal.Result)
 local Types = require(script.Parent.Types)
+local CodecWire = require(script.Parent.internal.CodecWire)
+local DeepCopy = require(script.Parent.internal.DeepCopy)
 
 export type Codec = Types.Codec
 export type UnknownTypePolicy = Types.UnknownTypePolicy
@@ -9,6 +11,7 @@ export type UnknownTypePolicy = Types.UnknownTypePolicy
 local TAG = "__omniCodec"
 local TYPE_ID = "typeId"
 local PAYLOAD = "value"
+local PLAIN_TABLE = "omnistore.PlainTable/v1"
 
 local CodecRegistry = {}
 CodecRegistry.__index = CodecRegistry
@@ -42,6 +45,7 @@ end
 function CodecRegistry:Register(codec: Codec): CodecRegistry
 	assert(type(codec) == "table", "codec must be a table")
 	assert(type(codec.typeId) == "string" and validTypeId(codec.typeId), "codec typeId is invalid")
+	assert(codec.typeId ~= PLAIN_TABLE, "codec typeId is reserved for plain-table escaping")
 	assert(type(codec.isType) == "function", "codec isType must be a function")
 	assert(type(codec.encode) == "function", "codec encode must be a function")
 	assert(type(codec.decode) == "function", "codec decode must be a function")
@@ -57,8 +61,10 @@ end
 
 function CodecRegistry:Encode(value: unknown): Types.Result<unknown>
 	local visiting: { [table]: boolean } = {}
-	local function encode(current: unknown, path: string): Types.Result<unknown>
-		for _, codec in self._codecs do
+	local function encode(current: unknown, path: string, wire: boolean?): Types.Result<unknown>
+		local preserveWire = wire == true
+			or (type(current) == "table" and CodecWire.isPreserved(current))
+		for _, codec in if preserveWire then {} else self._codecs do
 			local matchedOk, matched = pcall(codec.isType, current)
 			if not matchedOk then
 				return Result.err(
@@ -102,7 +108,7 @@ function CodecRegistry:Encode(value: unknown): Types.Result<unknown>
 		visiting[current] = true
 		local output = {}
 		for key, child in current do
-			local encodedChild = encode(child, `{path}.{tostring(key)}`)
+			local encodedChild = encode(child, `{path}.{tostring(key)}`, preserveWire)
 			if not encodedChild.ok then
 				visiting[current] = nil
 				return encodedChild
@@ -110,6 +116,10 @@ function CodecRegistry:Encode(value: unknown): Types.Result<unknown>
 			output[key] = encodedChild.value
 		end
 		visiting[current] = nil
+		-- Escape an ordinary table that could otherwise be interpreted as a codec on load.
+		if not preserveWire and output[TAG] == 1 and type(output[TYPE_ID]) == "string" then
+			return Result.ok({ [TAG] = 1, [TYPE_ID] = PLAIN_TABLE, [PAYLOAD] = output })
+		end
 		return Result.ok(output)
 	end
 	return encode(value, "$")
@@ -117,7 +127,11 @@ end
 
 function CodecRegistry:Decode(value: unknown): Types.Result<unknown>
 	local visiting: { [table]: boolean } = {}
-	local function decode(current: unknown, path: string): Types.Result<unknown>
+	local function decode(
+		current: unknown,
+		path: string,
+		plainTable: boolean?
+	): Types.Result<unknown>
 		if type(current) ~= "table" then
 			return Result.ok(current)
 		end
@@ -129,13 +143,27 @@ function CodecRegistry:Decode(value: unknown): Types.Result<unknown>
 			)
 		end
 		visiting[current] = true
-		if (current :: any)[TAG] == 1 and type((current :: any)[TYPE_ID]) == "string" then
+		if
+			not plainTable
+			and (current :: any)[TAG] == 1
+			and type((current :: any)[TYPE_ID]) == "string"
+		then
 			local typeId = (current :: any)[TYPE_ID] :: string
+			if typeId == PLAIN_TABLE then
+				local payload = (current :: any)[PAYLOAD]
+				if type(payload) ~= "table" then
+					visiting[current] = nil
+					return Result.err("InvalidData", `invalid escaped table at {path}`, false)
+				end
+				local result = decode(payload, `{path}<table>`, true)
+				visiting[current] = nil
+				return result
+			end
 			local codec = self._byTypeId[typeId]
 			if not codec then
 				visiting[current] = nil
 				if self._unknownTypePolicy == "Preserve" then
-					return Result.ok(table.clone(current))
+					return Result.ok(CodecWire.markTree(DeepCopy(current) :: table))
 				end
 				return Result.err(
 					"InvalidData",

@@ -75,9 +75,12 @@ export type Record = typeof(setmetatable(
 		_saving: boolean,
 		_saveRequested: boolean,
 		_lastSaveResult: Result<nil>?,
+		_closeRunning: boolean,
+		_lastCloseResult: Result<nil>?,
 		_stopBackground: boolean,
 		_backgroundJobs: { { Cancel: (self: any) -> () } },
 		_inTransaction: boolean,
+		_inUpdate: boolean,
 		_readOnly: boolean,
 	},
 	Record
@@ -107,9 +110,12 @@ function Record.new(store: StoreLike, key: string, owner: string, readOnly: bool
 		_saving = false,
 		_saveRequested = false,
 		_lastSaveResult = nil,
+		_closeRunning = false,
+		_lastCloseResult = nil,
 		_stopBackground = false,
 		_backgroundJobs = {},
 		_inTransaction = false,
+		_inUpdate = false,
 		_readOnly = readOnly == true,
 	}, Record)
 end
@@ -122,8 +128,8 @@ function Record:_requireWritable(): Types.Failure?
 	if self._readOnly then
 		return Result.err("ReadOnly", "record was loaded in read-only mode", false)
 	end
-	if self._inTransaction then
-		return Result.err("Conflict", "record writes are locked during a transaction", false)
+	if self._inTransaction or self._inUpdate then
+		return Result.err("Conflict", "record writes are locked during a mutation callback", false)
 	end
 	return nil
 end
@@ -158,6 +164,13 @@ function Record:_validateSerialization(value: unknown): Types.Result<nil>
 		return encoded :: any
 	end
 	return Serializer.validate(encoded.value, {
+		maxDepth = self._store._config.maxSerializationDepth,
+		maxPayloadBytes = self._store._config.maxPayloadBytes,
+	})
+end
+
+function Record:_validateMetadata(value: unknown): Types.Result<nil>
+	return Serializer.validate(value, {
 		maxDepth = self._store._config.maxSerializationDepth,
 		maxPayloadBytes = self._store._config.maxPayloadBytes,
 	})
@@ -242,6 +255,9 @@ function Record:_startBackgroundTasks()
 					return nil
 				end
 				local renewed = self._store:_renewRecord(self.Key, self._owner)
+				if self._stopBackground or self.State ~= "Active" then
+					return nil
+				end
 				if not renewed.ok then
 					if renewed.error.code == "LeaseLost" then
 						self:_setState("LeaseLost")
@@ -362,9 +378,16 @@ function Record:Update(path: PathValue, updater: (unknown) -> unknown): Result<u
 	if not current.ok then
 		return current
 	end
-	local ok, nextValue = pcall(updater, current.value)
+	self._inUpdate = true
+	local ok, yielded, nextValue = NoYield.run(updater, current.value)
+	self._inUpdate = false
 	if not ok then
-		return Result.err("InvalidData", "Update callback failed", false, nextValue)
+		return Result.err(
+			"InvalidData",
+			if yielded then "Update callback yielded" else "Update callback failed",
+			false,
+			nextValue
+		)
 	end
 	return self:Set(path, nextValue)
 end
@@ -437,7 +460,7 @@ function Record:SetMetadata(key: string, value: unknown): Result<nil>
 	end
 	local candidate = DeepCopy(self._metadata) :: { [string]: unknown }
 	candidate[key] = DeepCopy(value)
-	local valid = self:_validateSerialization(candidate)
+	local valid = self:_validateMetadata(candidate)
 	if not valid.ok then
 		return valid
 	end
@@ -467,6 +490,9 @@ function Record:Transaction(callback: (TransactionDraft.TransactionDraft) -> ())
 	local draft = TransactionDraft.new(self._data, self._metadata, function(value)
 		local serialized = self:_validateSerialization(value)
 		return if serialized.ok then nil else serialized
+	end, function(value)
+		local serialized = self:_validateMetadata(value)
+		return if serialized.ok then nil else serialized
 	end)
 	self._inTransaction = true
 	local ok, yielded, cause = NoYield.run(callback, draft)
@@ -491,7 +517,7 @@ function Record:Transaction(callback: (TransactionDraft.TransactionDraft) -> ())
 	if validationError then
 		return validationError
 	end
-	local metadataValidation = self:_validateSerialization(metadata)
+	local metadataValidation = self:_validateMetadata(metadata)
 	if not metadataValidation.ok then
 		return metadataValidation
 	end
@@ -526,7 +552,9 @@ function Record:_saveOnce(release: boolean, deadline: number?): Result<nil>
 	)
 	if not saved.ok then
 		if saved.error.code == "LeaseLost" then
-			self:_setState("LeaseLost")
+			if self.State ~= "Closed" then
+				self:_setState("LeaseLost")
+			end
 			self._store:_metric("lease_lost", 1)
 			self._store:_log("error", "lease_lost", "record lease was lost during save")
 		end
@@ -579,9 +607,16 @@ function Record:SaveAsync(timeout: number?): Result<nil>
 	return result
 end
 
-function Record:CloseAsync(timeout: number?): Result<nil>
-	if self._inTransaction then
-		return Result.err("Conflict", "record cannot close during a transaction", false)
+function Record:_finishClose()
+	self:_setState("Closed")
+	self._store:_forgetRecord(self.Key)
+	self.Changed:Destroy()
+	self.LifecycleChanged:Destroy()
+end
+
+function Record:_closeOnce(timeout: number?): Result<nil>
+	if self._inTransaction or self._inUpdate then
+		return Result.err("Conflict", "record cannot close during a mutation callback", false)
 	end
 	if self.State == "Closed" then
 		return Result.ok(nil)
@@ -590,14 +625,14 @@ function Record:CloseAsync(timeout: number?): Result<nil>
 		return Result.err("NotLoaded", "only an active record can be closed", false)
 	end
 
+	local leaseWasLost = self.State == "LeaseLost"
 	self:_setState("Closing")
 	self:_stopBackgroundTasks()
-	if self._readOnly then
-		self:_setState("Closed")
-		self._store:_forgetRecord(self.Key)
-		self.Changed:Destroy()
-		self.LifecycleChanged:Destroy()
-		return Result.ok(nil)
+	if self._readOnly or leaseWasLost then
+		self:_finishClose()
+		return if leaseWasLost
+			then Result.err("LeaseLost", "closed local record after losing its lease", false)
+			else Result.ok(nil)
 	end
 	local clock = self._store._config.monotonicClock :: () -> number
 	local deadline = clock() + math.max(0, timeout or (self._store._config.closeTimeout :: number))
@@ -617,6 +652,10 @@ function Record:CloseAsync(timeout: number?): Result<nil>
 		end
 		(self._store._config.wait :: (number) -> ())(0.03)
 	end
+	if self.State == "LeaseLost" then
+		self:_finishClose()
+		return Result.err("LeaseLost", "closed local record after losing its lease", false)
+	end
 	local result = self:_saveOnce(true, deadline)
 	if not result.ok and result.error.code ~= "LeaseLost" then
 		if result.error.code == "Timeout" then
@@ -628,10 +667,33 @@ function Record:CloseAsync(timeout: number?): Result<nil>
 		return result
 	end
 
-	self:_setState("Closed")
-	self._store:_forgetRecord(self.Key)
-	self.Changed:Destroy()
-	self.LifecycleChanged:Destroy()
+	self:_finishClose()
+	return result
+end
+
+function Record:CloseAsync(timeout: number?): Result<nil>
+	local clock = self._store._config.monotonicClock :: () -> number
+	local deadline = clock() + math.max(0, timeout or (self._store._config.closeTimeout :: number))
+	if self._closeRunning then
+		while self._closeRunning do
+			if clock() >= deadline then
+				return Result.err("Timeout", "timed out waiting for record close", true)
+			end
+			(self._store._config.wait :: (number) -> ())(0.03)
+		end
+		return self._lastCloseResult or Result.ok(nil)
+	end
+	self._closeRunning = true
+	local ok, result = pcall(self._closeOnce, self, math.max(0, deadline - clock()))
+	if not ok then
+		result = Result.err("PersistenceFailed", "record close failed", false, result)
+		if self.State == "Closing" then
+			self:_setState("Active")
+			self:_startBackgroundTasks()
+		end
+	end
+	self._lastCloseResult = result
+	self._closeRunning = false
 	return result
 end
 

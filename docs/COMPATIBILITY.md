@@ -1,5 +1,16 @@
 # Compatibility and upgrades
 
+`DeleteAsync` now writes an empty envelope with `deleted = true` instead of unconditionally removing
+the key. Upgrade all readers/writers before using deletion: old versions do not recognize tombstones.
+Do not run uncoordinated `RemoveAsync` cleanup against live keys; it can erase a recreated record.
+Historical DataStore versions require a separate administrative retention/erasure procedure.
+
+Codec registries reserve `omnistore.PlainTable/v1` to escape ordinary tables that resemble codec
+markers. Deploy readers supporting this escape before writing marker-shaped tables; older readers
+cannot decode the new escape. Existing unescaped marker-shaped values are inherently ambiguous and
+retain their legacy decoding behavior. Escaping cannot recover data already misinterpreted by an
+older reader.
+
 ## Supported environment
 
 | Surface | Policy |
@@ -41,6 +52,24 @@ than ordinary code APIs:
 An application schema version is independent from the OmniStore package version.
 
 ## Upgrade procedure
+
+The rc.3-to-development matrix is covered by `tests/Compatibility.spec.lua` using pinned persistence
+fixtures from `d83a1d4`:
+
+| Writer/operation | Reader/owner | Result |
+| --- | --- | --- |
+| rc.3 ordinary data | development reader | Supported |
+| development ordinary data, including `writeId` | rc.3 reader | Supported |
+| development tombstone | rc.3 reader | Unsafe: old reader returns a template-shaped record instead of NotFound |
+| development escaped marker table | rc.3 codec reader | Rejected as an unknown codec |
+| rc.3 DeleteAsync | development live lease | Unsafe: old deletion bypasses the lease |
+
+For this upgrade, pause writes and drain every rc.3 server before allowing new servers to write
+tombstones or escaped marker tables. A rolling deployment alone does not retire existing servers.
+Keep writes paused if old servers cannot be drained. Restoring the old binary after new-format
+writes is not a safe rollback; retain updated readers and ship a forward fix instead. A small
+new-server cohort may validate ordinary records before the drain, but must not use deletion or
+marker-shaped plain-table writes, and old deletion paths must remain disabled.
 
 1. Read every changelog entry between the deployed and target versions.
 2. Update the dependency in a branch and regenerate the lockfile intentionally.

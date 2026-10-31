@@ -23,6 +23,54 @@ return function()
 	end
 
 	describe("session semantics", function()
+		it("rejects scalar read-only envelopes without leaking the pending-load count", function()
+			local adapter = OmniStore.Adapters.Memory.new()
+			local original = adapter.Read
+			adapter.Read = function(self, key)
+				if key == "malformed" then
+					return { ok = true, value = 42 }
+				end
+				return original(self, key)
+			end
+			local store = OmniStore.new({ autoBindToClose = false }):GetStore("Malformed", {
+				adapter = adapter,
+				autosaveInterval = 0,
+				lease = { enabled = false },
+			})
+			expect(store:LoadAsync("malformed", { mode = "ReadOnly" }).error.code).to.equal(
+				"InvalidData"
+			)
+			expect(store:LoadAsync("healthy").ok).to.equal(true)
+			expect(store:CloseAsync(1).ok).to.equal(true)
+		end)
+
+		it("closes a lost-lease handle without another persistence request", function()
+			local now = 100
+			local function clock()
+				return now
+			end
+			local adapter = OmniStore.Adapters.Memory.new()
+			local firstStore = OmniStore.new({ autoBindToClose = false })
+				:GetStore("Shared", config(adapter, clock, nil))
+			local secondStore = OmniStore.new({ autoBindToClose = false })
+				:GetStore("Shared", config(adapter, clock, nil))
+			local first = firstStore:LoadAsync("record").value
+			now = 111
+			local second = secondStore:LoadAsync("record").value
+			expect(first:SaveAsync().error.code).to.equal("LeaseLost")
+			local original = adapter.Update
+			local calls = 0
+			adapter.Update = function(self, key, transform)
+				calls += 1
+				return original(self, key, transform)
+			end
+			expect(first:CloseAsync().error.code).to.equal("LeaseLost")
+			expect(first.State).to.equal("Closed")
+			expect(firstStore:GetLoadedRecord("record")).to.equal(nil)
+			expect(calls).to.equal(0)
+			second:CloseAsync()
+		end)
+
 		it("writes diagnostic identity into new leases", function()
 			local adapter = OmniStore.Adapters.Memory.new()
 			local database = OmniStore.new({ autoBindToClose = false })

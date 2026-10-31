@@ -1,6 +1,7 @@
 --!strict
 
 local DeepCopy = require(script.Parent.DeepCopy)
+local NoYield = require(script.Parent.NoYield)
 local Result = require(script.Parent.Result)
 local Types = require(script.Parent.Parent.Types)
 
@@ -33,9 +34,14 @@ function Migrate.run(
 		if selected.to <= currentVersion or selected.to > targetVersion then
 			return Result.err("MigrationFailed", "migration has an invalid target version", false)
 		end
-		local ok, migrated = pcall(selected.migrate, currentData)
+		local ok, yielded, migrated = NoYield.run(selected.migrate, currentData)
 		if not ok then
-			return Result.err("MigrationFailed", "migration callback failed", false, migrated)
+			return Result.err(
+				"MigrationFailed",
+				if yielded then "migration callback yielded" else "migration callback failed",
+				false,
+				migrated
+			)
 		end
 		if selected.schema then
 			local schemaOk, valid, message =

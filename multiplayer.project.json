@@ -1,0 +1,21 @@
+{
+  "name": "OmniStoreMultiplayerTests",
+  "tree": {
+    "$className": "DataModel",
+    "ReplicatedStorage": {
+      "Packages": {
+        "$path": "DevPackages",
+        "OmniStore": { "$path": "src" }
+      }
+    },
+    "ServerScriptService": {
+      "OmniStoreTests": { "$path": "tests" },
+      "OmniStoreMultiplayer": { "$path": "scripts/multiplayer/Server.server.lua" }
+    },
+    "StarterPlayer": {
+      "StarterPlayerScripts": {
+        "OmniStoreMultiplayerClient": { "$path": "scripts/multiplayer/Client.client.lua" }
+      }
+    }
+  }
+}

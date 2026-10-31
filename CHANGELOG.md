@@ -4,6 +4,37 @@ All notable changes follow Keep a Changelog. This project uses semantic versioni
 
 ## [Unreleased]
 
+### Fixed
+
+- Preserve nested unknown codec wire values when they are copied to another record path.
+- Make Studio snapshot-throttling tests send a concurrent burst instead of relying on round-trip speed.
+
+- Reject invalid manager-close limits before gating stores, reject malformed read-only envelopes
+  without leaking lifecycle state, and retain unknown codec wire meaning across copy/save cycles.
+
+- Gate shutdown before accepting more work, drain in-flight loads/deletes, and close records with
+  bounded concurrency and coalesced close results.
+- Reject yielding/reentrant updates and yielding migrations; isolate retry transform decisions.
+- Enforce retry deadlines before requests and recognize committed saves/closes after response loss.
+- Validate metadata in its persisted form and preserve marker-shaped plain tables through codecs.
+- Fence deletion against live leases using atomic empty tombstones; never reactivate lost-lease handles.
+
+### Added
+
+- Opt-in Studio server/two-client integration harness covering replication, client isolation,
+  rate limits, join/leave persistence, and bounded shutdown with memory and live DataStore adapters.
+- Pinned rc.3 persistence compatibility fixtures and a test gate that detects planning errors and
+  empty runs as well as failed assertions.
+
+- Deterministic regression coverage for concurrency, response loss, migration replay, and shutdown.
+- Manual dedicated-universe DataStore smoke runner, excluded from automatic tests and package code.
+
+### Changed
+
+- `DeleteAsync` performs logical deletion; empty tombstones remain stored. Upgrade all writers/readers
+  before using this behavior. Codec plain-table escaping also requires updated readers; see
+  `docs/COMPATIBILITY.md` before rollout or rollback.
+
 ## [0.2.0-rc.3] - 2026-10-03
 
 ### Changed

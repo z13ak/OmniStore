@@ -15,6 +15,7 @@ exclude = [
     "tests",
     "dev.project.json",
     "test.project.json",
+    "multiplayer.project.json",
     "aftman.toml",
     "rokit.toml",
     "selene.toml",

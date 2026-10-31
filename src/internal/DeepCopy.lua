@@ -1,5 +1,7 @@
 --!strict
 
+local CodecWire = require(script.Parent.CodecWire)
+
 local function deepCopy(value: unknown, seen: { [table]: table }?): unknown
 	if type(value) ~= "table" then
 		return value
@@ -12,6 +14,9 @@ local function deepCopy(value: unknown, seen: { [table]: table }?): unknown
 	end
 
 	local copy = {}
+	if CodecWire.isPreserved(source) then
+		CodecWire.mark(copy)
+	end
 	visited[source] = copy
 	local copyAny = copy :: any
 	for key, child in source do
