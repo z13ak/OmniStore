@@ -4,6 +4,8 @@ All notable changes follow Keep a Changelog. This project uses semantic versioni
 
 ## [Unreleased]
 
+## [0.2.0-rc.4] - 2026-10-30
+
 ### Fixed
 
 - Preserve nested unknown codec wire values when they are copied to another record path.

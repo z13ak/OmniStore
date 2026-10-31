@@ -16,8 +16,9 @@ A record key can represent any durable entity: a player, server, guild, world, p
 specific to your game. Stores add schemas, migrations, session leases, autosave, and safe mutation
 helpers on top of Roblox DataStores. Read-only client replication is optional.
 
-> **Status:** `0.2.0-rc.3` is a public release candidate. Complete Studio API-services testing in a
-> separate universe before using it with production data.
+> **Status:** `0.2.0-rc.4` is a release candidate. It adds persistence reliability fixes and expanded
+> regression coverage. Validate migrations and representative stored data in a separate test universe
+> before upgrading a production experience.
 
 ## Quick start
 
@@ -73,6 +74,16 @@ record API so dirty tracking and validation cannot be bypassed accidentally.
 
 ## Important limits
 
+### Upgrading from rc.3
+
+This candidate changes deletion to retain empty tombstones and escapes literal tables that resemble
+codec markers. Old readers do not safely understand every new representation, and old deletion
+paths can bypass the updated lease checks. Pause writes and drain all rc.3 servers before enabling
+deletion or new-format writes. Reverting to rc.3 after those writes is unsafe; see the
+[compatibility and upgrade procedure](docs/COMPATIBILITY.md).
+
+### Persistence guarantees
+
 OmniStore cannot provide database-wide ACID transactions, guaranteed shutdown saves, protection
 from a compromised server, or immunity to Roblox outages and platform limits. A transaction is
 atomic only in local memory until a later single-record save. Roblox `UpdateAsync` supplies the
@@ -100,11 +111,14 @@ Add OmniStore to your `wally.toml`:
 
 ```toml
 [dependencies]
-OmniStore = "z13ak/omnistore@0.2.0-rc.3"
+OmniStore = "z13ak/omnistore@0.2.0-rc.4"
 ```
 
 Then run `wally install`. Prebuilt files are also available from the
 [GitHub releases](https://github.com/z13ak/OmniStore/releases).
+
+GitHub assets and Wally registry publication are separate. If rc.4 is not yet available in the
+registry, use the matching GitHub release model; rc.3 does not contain these reliability fixes.
 
 ## Development
 
@@ -129,6 +143,12 @@ universe, never a production universe.
 
 Pull requests run formatting, linting, all Rojo builds, and Wally package inspection in CI. Studio
 TestEZ and isolated-universe DataStore smoke tests remain explicit runtime release gates.
+
+The reviewed library source passed 103 TestEZ tests and dedicated-universe integration checks.
+Reported checks for locking, handover, crash recovery, stale-owner protection, failed loads/saves,
+and shutdown persistence are recorded in the [manual test results](docs/MANUAL_TESTS.md), including
+the limits of the recorded evidence. These results do not establish production-scale capacity or
+compatibility with a game's existing data.
 
 ## License
 

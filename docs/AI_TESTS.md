@@ -37,3 +37,9 @@ These checks used two session identities inside one Studio server, not two indep
 ## Evidence boundaries
 
 Simulated adapter errors test failure handling, not Roblox service outage behavior. Timing samples are not production capacity estimates. Maintainer reports of crash recovery, handover, and shutdown persistence are recorded only in the manual record. Migration/deployment compatibility and maintainer approval remain separate release requirements.
+
+## rc.4 candidate verification — 2026-10-30
+
+The candidate updates the version, lockfile, changelog, and documentation on top of merged commit `511f88a`; library, unit-test, and integration-harness source is unchanged. Wally dependency installation completed, followed by `scripts/verify.ps1 -SkipInstall`. Formatting, linting, all four Rojo builds, package inspection (40 entries), and whitespace checks passed.
+
+All 52 library/test sources matched the dedicated Studio test place after newline normalization. A fresh Play run reported `Passed = 103`, `GatePassed = true`, and `Complete = true`. Play was then stopped. No new multiplayer or hosted-server run is claimed for this candidate; the existing evidence retains its original scope.

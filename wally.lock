@@ -9,5 +9,5 @@ dependencies = []
 
 [[package]]
 name = "z13ak/omnistore"
-version = "0.2.0-rc.3"
+version = "0.2.0-rc.4"
 dependencies = [["TestEZ", "roblox/testez@0.4.1"]]
